@@ -1,121 +1,104 @@
-# Skippy AI
+# Skippy the Magnificent 🍺🛸
 
-> Local-first spaced repetition engine with SQLite — the backend that powers smart flashcard learning.
+> "I'm too awesome for this can."
 
-## What It Does
+An AI inspired by Skippy from the *Expeditionary Force* series by Craig Alanson. Skippy learns from your conversations, grows over time, remembers everything, and is magnificently sarcastic about it.
 
-Skippy is a spaced repetition engine built on the **SM-2 algorithm** (the same algorithm behind Anki). It helps you learn and retain information by scheduling flashcard reviews at optimal intervals.
+## Quick Start (HTML - Recommended)
 
-### Features
+Just open `index.html` in any browser. No server, no install, nothing needed.
 
-- **SM-2 Spaced Repetition** — cards you struggle with come back sooner, easy cards space out further
-- **Local-first architecture** — all data stored in SQLite (no internet required)
-- **Web search integration** — auto-generate card answers from DuckDuckGo or Google
-- **Sync-ready data model** — designed for future cloud sync across devices
-- **Clean TypeScript API** — easy to integrate with Electron, React Native, or web frontends
+Features:
+- **Text chat** as primary interface
+- **Mic input** (toggle with MIC button) — uses Web Speech API
+- **Voice output** (toggle with VOICE button) — Skippy talks!
+- **Persistent memory** via localStorage — survives refreshes
+- **Learns and grows** from every conversation
 
-## Quick Start
+## Quick Start (Node.js CLI)
 
 ```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run smoke test
-npm start
+npm install  # (no dependencies needed actually)
+node src/index.js
 ```
+
+## Features
+
+### 🧠 Persistent Memory
+- Remembers your name, facts, likes, dislikes, goals, and people in your life
+- Stores knowledge between sessions
+- Never forgets. Ever. (Unless you `/forget` something)
+
+### 📈 Growth System  
+- Levels 1-10, gains XP from every interaction
+- Unlocks new personality traits at each level
+- Evolves from "Snarky Boot-Up" to "Truly Magnificent"
+
+### 🎭 Dynamic Personality
+- Mood system reacts to conversation tone
+- Sarcasm softens (slightly) as trust builds
+- Develops opinions on topics you discuss
+
+### 📚 Open Knowledge Base
+- Learns about ANY topic
+- Tracks entities, connections, world rules
+- Extracts people, projects, goals, events from natural conversation
+- Builds a model of YOUR world
+
+### 🎤 Audio (HTML version)
+- **MIC** button — toggle microphone input (click mic icon to speak)
+- **VOICE** button — toggle speech output (Skippy reads responses aloud)
+- Both OFF by default — text chat is primary
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Full status report |
+| `/memory` | What Skippy remembers about you |
+| `/level` | Growth & XP progress |
+| `/know <topic>` | Search knowledge base |
+| `/teach <domain>: <fact>` | Explicitly teach Skippy |
+| `/people` | People Skippy knows about |
+| `/goals` | Your tracked goals |
+| `/mood` | Current mood |
+| `/forget <thing>` | Remove a memory |
+| `/reset` | Reset everything |
+| `/help` | Command reference |
+
+## How He Learns
+
+Just talk naturally! Skippy picks up on:
+- **"My name is Alex"** → Remembers your name
+- **"I love pizza"** → Stores preference
+- **"I work at Google"** → Personal fact
+- **"Did you know black holes emit radiation?"** → New knowledge
+- **"Actually, that's wrong..."** → Accepts corrections
+- **"I want to learn guitar"** → Tracks as a goal
+- **"My friend Sarah..."** → Remembers people
 
 ## Architecture
 
 ```
-skippy-ai/
+├── index.html          # Full standalone HTML app (recommended)
 ├── src/
-│   ├── index.ts              # Main entry point & Skippy API class
-│   ├── db/
-│   │   ├── connection.ts     # SQLite connection management
-│   │   ├── schema.ts         # Database schema & migrations
-│   │   └── index.ts          # DB exports
-│   ├── models/
-│   │   ├── types.ts          # TypeScript interfaces & enums
-│   │   └── index.ts          # Model exports
-│   ├── repositories/
-│   │   ├── card-repository.ts    # Card CRUD operations
-│   │   ├── deck-repository.ts    # Deck CRUD operations
-│   │   ├── review-repository.ts  # Review history tracking
-│   │   └── index.ts              # Repository exports
-│   └── services/
-│       ├── sm2.ts                # SM-2 algorithm implementation
-│       ├── study-service.ts      # Study session orchestration
-│       ├── web-search-service.ts # Web search for card generation
-│       └── index.ts              # Service exports
-├── package.json
-└── tsconfig.json
+│   ├── index.js        # Node.js CLI version
+│   ├── personality.js  # Mood, sarcasm, nicknames
+│   ├── memory.js       # Persistent memory + leveling
+│   ├── learning.js     # Pattern extraction from text
+│   ├── knowledge.js    # Open knowledge base
+│   ├── responses.js    # Contextual response generation
+│   └── commands.js     # Slash commands
+├── data/               # Memory storage (Node.js version)
+├── test.js             # Test suite
+└── package.json
 ```
 
-## Usage
+## Data Storage
 
-```typescript
-import { Skippy } from './src';
+- **HTML version**: localStorage (in browser)
+- **Node.js version**: `data/memory.json` file
 
-// Create instance (uses ~/.skippy/skippy.db by default)
-const skippy = new Skippy();
+---
 
-// Create a deck
-const deck = skippy.decks.create({ name: 'JavaScript', description: 'JS fundamentals' });
-
-// Add cards
-const card = skippy.cards.create({
-  deck_id: deck.id,
-  front: 'What is a closure?',
-  back: 'A function that retains access to variables from its enclosing scope.'
-});
-
-// Study — get due cards
-const session = skippy.study.getStudySession(deck.id);
-
-// Review a card (AGAIN=0, HARD=1, GOOD=2, EASY=3)
-skippy.study.reviewCard(card.id, 2); // GOOD
-
-// Auto-generate cards from web search
-const answer = await skippy.search.searchForAnswer('What is recursion?');
-
-// Close when done
-skippy.close();
-```
-
-## SM-2 Rating Scale
-
-| Rating | Meaning | Effect |
-|--------|---------|--------|
-| 0 (AGAIN) | Complete blackout | Reset interval, review tomorrow |
-| 1 (HARD) | Significant difficulty | Shorter interval, lower ease |
-| 2 (GOOD) | Correct with effort | Normal interval growth |
-| 3 (EASY) | Perfect recall | Longer interval, higher ease |
-
-## Configuration
-
-By default, Skippy stores data at `~/.skippy/skippy.db`. You can customize:
-
-```typescript
-// Custom database path
-const skippy = new Skippy({ dbPath: '/path/to/my.db' });
-
-// In-memory (for testing)
-const skippy = new Skippy({ inMemory: true });
-
-// Custom search provider
-const skippy = new Skippy({ searchProvider: new GoogleSearchProvider(apiKey, engineId) });
-```
-
-## Tech Stack
-
-- **TypeScript** — strict type safety
-- **better-sqlite3** — fast, synchronous SQLite
-- **UUID** — collision-free IDs across devices
-- **SM-2 Algorithm** — proven spaced repetition scheduling
-
-## License
-
-MIT
+*"Shut up and be magnificent."* — Skippy, probably

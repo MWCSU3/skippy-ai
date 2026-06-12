@@ -1,907 +1,1198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skippy - Spaced Repetition Flashcards</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --primary-light: #818cf8;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --info: #06b6d4;
-            --bg: #0f172a;
-            --bg-card: #1e293b;
-            --bg-elevated: #334155;
-            --text: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border: #475569;
-            --radius: 12px;
-            --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
-            --again: #ef4444;
-            --hard: #f97316;
-            --good: #10b981;
-            --easy: #06b6d4;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes flipIn { from { transform: rotateX(-90deg); opacity: 0; } to { transform: rotateX(0); opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
-        .animate-fade { animation: fadeIn 0.3s ease-out; }
-        .animate-flip { animation: flipIn 0.4s ease-out; }
-        .animate-slide { animation: slideUp 0.4s ease-out; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skippy the Magnificent</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* Layout */
-        .app { max-width: 900px; margin: 0 auto; padding: 20px; }
-        .screen { display: none; } .screen.active { display: block; }
+body {
+  font-family: 'Courier New', monospace;
+  background: #0a0e17;
+  color: #00ff88;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-        /* Header */
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg-card); border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow); }
-        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--info)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .header-actions { display: flex; gap: 10px; align-items: center; }
-        .header-stats { display: flex; gap: 14px; }
-        .stat { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
-        .stat .num { font-weight: 700; color: var(--text); }
+.header {
+  background: linear-gradient(135deg, #0d1b2a, #1b2838);
+  border-bottom: 2px solid #00ff88;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-        /* Buttons */
-        .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
-        .btn:hover { transform: translateY(-1px); }
-        .btn:active { transform: translateY(0); }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-secondary { background: var(--bg-elevated); color: var(--text); }
-        .btn-secondary:hover { background: var(--border); }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
-        .btn-icon { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 6px; font-size: 1.1rem; }
-        .btn-icon:hover { background: var(--bg-elevated); color: var(--text); }
-        .btn-back { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; padding: 8px; border-radius: 8px; }
-        .btn-back:hover { background: var(--bg-elevated); color: var(--text); }
+.header h1 {
+  font-size: 1.2em;
+  color: #00ff88;
+  text-shadow: 0 0 10px #00ff8855;
+}
 
-        /* Cards (UI cards, not flashcards) */
-        .card { background: var(--bg-card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); margin-bottom: 16px; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .card-title { font-size: 1.1rem; font-weight: 700; }
+.header .subtitle {
+  font-size: 0.7em;
+  color: #557799;
+  margin-top: 2px;
+}
 
-        /* Deck List */
-        .deck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .deck-item { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; }
-        .deck-item:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(99,102,241,0.15); }
-        .deck-item h3 { font-size: 1.1rem; margin-bottom: 6px; }
-        .deck-item p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; }
-        .deck-meta { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text-muted); }
-        .deck-meta span { display: flex; align-items: center; gap: 4px; }
-        .deck-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
-        .due-badge { background: var(--primary); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
-        .due-badge.none { background: var(--bg-elevated); color: var(--text-muted); }
+.header-stats {
+  display: flex;
+  gap: 15px;
+  font-size: 0.75em;
+  color: #88aacc;
+}
 
-        /* Forms */
-        .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-        .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
-        .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
-        .form-group textarea { min-height: 100px; resize: vertical; font-family: inherit; }
-        .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.header-stats span {
+  background: #0a0e17;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid #224466;
+}
 
-        /* Modal */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
-        .modal-overlay.show { display: flex; }
-        .modal { background: var(--bg-card); border-radius: 16px; padding: 28px; width: 100%; max-width: 500px; animation: slideUp 0.3s ease-out; }
-        .modal h2 { font-size: 1.3rem; margin-bottom: 20px; }
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 
-        /* Study View */
-        .study-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-        .study-progress-bar { flex: 1; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
-        .study-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--info)); border-radius: 4px; transition: width 0.4s ease; }
-        .study-progress-text { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+.toggle-btn {
+  background: #1a2332;
+  border: 1px solid #334455;
+  color: #667788;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8em;
+  transition: all 0.2s;
+  font-family: inherit;
+}
 
-        .flashcard { background: var(--bg-card); border: 2px solid var(--border); border-radius: 16px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40px; margin-bottom: 24px; cursor: pointer; transition: all 0.2s; position: relative; }
-        .flashcard:hover { border-color: var(--primary-light); }
-        .flashcard-label { position: absolute; top: 16px; left: 16px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); background: var(--bg-elevated); padding: 4px 10px; border-radius: 6px; }
-        .flashcard-content { font-size: 1.3rem; line-height: 1.6; max-width: 600px; }
-        .flashcard-hint { position: absolute; bottom: 16px; font-size: 0.8rem; color: var(--text-muted); }
-        .flashcard.revealed { border-color: var(--success); }
-        .flashcard.revealed .flashcard-label { background: rgba(16,185,129,0.15); color: var(--success); }
+.toggle-btn.active {
+  border-color: #00ff88;
+  color: #00ff88;
+  background: #0a2020;
+  box-shadow: 0 0 8px #00ff8833;
+}
 
-        .rating-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        .rating-btn { padding: 14px 12px; border: 2px solid transparent; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s; background: var(--bg-card); }
-        .rating-btn:hover { transform: translateY(-2px); }
-        .rating-btn .rating-label { font-size: 0.9rem; font-weight: 700; display: block; margin-bottom: 4px; }
-        .rating-btn .rating-interval { font-size: 0.75rem; color: var(--text-muted); }
-        .rating-btn.again { border-color: var(--again); color: var(--again); } .rating-btn.again:hover { background: rgba(239,68,68,0.1); }
-        .rating-btn.hard { border-color: var(--hard); color: var(--hard); } .rating-btn.hard:hover { background: rgba(249,115,22,0.1); }
-        .rating-btn.good { border-color: var(--good); color: var(--good); } .rating-btn.good:hover { background: rgba(16,185,129,0.1); }
-        .rating-btn.easy { border-color: var(--easy); color: var(--easy); } .rating-btn.easy:hover { background: rgba(6,182,212,0.1); }
+.toggle-btn:hover {
+  border-color: #00aaff;
+  color: #00aaff;
+}
 
-        /* Stats */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-        .stat-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px; text-align: center; }
-        .stat-card .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
-        .stat-card .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
-        .stat-card.success .stat-value { color: var(--success); }
-        .stat-card.warning .stat-value { color: var(--warning); }
-        .stat-card.info .stat-value { color: var(--info); }
+#voice-select {
+  background: #1a2332;
+  border: 1px solid #334455;
+  color: #88aacc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.75em;
+  cursor: pointer;
+  max-width: 160px;
+  outline: none;
+}
 
-        /* Card List (in deck view) */
-        .card-list-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-elevated); border-radius: 8px; margin-bottom: 8px; }
-        .card-list-item .card-front { font-weight: 600; font-size: 0.9rem; flex: 1; }
-        .card-list-item .card-info { display: flex; gap: 12px; align-items: center; font-size: 0.8rem; color: var(--text-muted); }
-        .card-list-item .card-actions { display: flex; gap: 4px; margin-left: 12px; }
+#voice-select:focus {
+  border-color: #00ff88;
+}
 
-        /* Empty states */
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-        .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
-        .empty-state h3 { font-size: 1.2rem; color: var(--text); margin-bottom: 8px; }
-        .empty-state p { margin-bottom: 20px; font-size: 0.9rem; }
+#voice-select option {
+  background: #1a2332;
+  color: #88aacc;
+}
 
-        /* Study complete */
-        .study-complete { text-align: center; padding: 60px 20px; }
-        .study-complete .complete-icon { font-size: 4rem; margin-bottom: 16px; }
-        .study-complete h2 { font-size: 1.8rem; margin-bottom: 8px; }
-        .study-complete p { color: var(--text-muted); margin-bottom: 24px; }
-        .study-complete .session-stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 30px; }
-        .study-complete .session-stat { text-align: center; }
-        .study-complete .session-stat-value { font-size: 2rem; font-weight: 800; color: var(--primary); }
-        .study-complete .session-stat-label { font-size: 0.8rem; color: var(--text-muted); }
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-        /* Toast */
-        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
-        .toast { padding: 12px 18px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border); box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; font-size: 0.9rem; }
-        .toast.success { border-color: var(--success); }
-        .toast.error { border-color: var(--danger); }
+.message {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+  font-size: 0.9em;
+  animation: fadeIn 0.3s ease;
+  white-space: pre-wrap;
+}
 
-        /* Responsive */
-        @media (max-width: 600px) {
-            .deck-grid { grid-template-columns: 1fr; }
-            .rating-buttons { grid-template-columns: repeat(2, 1fr); }
-            .flashcard { min-height: 220px; padding: 30px 20px; }
-            .flashcard-content { font-size: 1.1rem; }
-            .header { flex-direction: column; gap: 12px; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message.user {
+  align-self: flex-end;
+  background: #1a3350;
+  color: #aaddff;
+  border: 1px solid #2a4466;
+}
+
+.message.skippy {
+  align-self: flex-start;
+  background: #0d2818;
+  color: #00ff88;
+  border: 1px solid #1a4430;
+}
+
+.message.skippy .learning-note {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #1a4430;
+  font-size: 0.8em;
+  color: #44aa66;
+}
+
+.message.system {
+  align-self: center;
+  background: #1a1a2e;
+  color: #8888aa;
+  border: 1px solid #2a2a44;
+  font-size: 0.8em;
+  text-align: center;
+}
+
+.input-area {
+  padding: 15px 20px;
+  background: #0d1b2a;
+  border-top: 2px solid #1a3350;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.input-area input {
+  flex: 1;
+  background: #0a0e17;
+  border: 1px solid #2a4466;
+  color: #aaddff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95em;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-area input:focus {
+  border-color: #00ff88;
+  box-shadow: 0 0 8px #00ff8822;
+}
+
+.input-area button {
+  background: linear-gradient(135deg, #00aa55, #00ff88);
+  border: none;
+  color: #0a0e17;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+
+.input-area button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px #00ff8844;
+}
+
+.input-area button:active {
+  transform: scale(0.95);
+}
+
+.mic-btn {
+  background: #1a2332 !important;
+  border: 1px solid #334455 !important;
+  color: #667788 !important;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  font-size: 1.2em !important;
+}
+
+.mic-btn.listening {
+  border-color: #ff4444 !important;
+  color: #ff4444 !important;
+  background: #2a1515 !important;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 #ff444444; }
+  50% { box-shadow: 0 0 0 8px #ff444400; }
+}
+
+.mic-btn.hidden { display: none; }
+
+.chat-area::-webkit-scrollbar { width: 6px; }
+.chat-area::-webkit-scrollbar-track { background: #0a0e17; }
+.chat-area::-webkit-scrollbar-thumb { background: #1a3350; border-radius: 3px; }
+
+.typing-indicator {
+  align-self: flex-start;
+  color: #44aa66;
+  font-style: italic;
+  padding: 8px 16px;
+  font-size: 0.85em;
+}
+
+.typing-indicator span {
+  animation: blink 1.4s infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+  0%, 60%, 100% { opacity: 0.2; }
+  30% { opacity: 1; }
+}
+</style>
 </head>
 <body>
-<div class="app">
-    <!-- Toast Container -->
-    <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Modal -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal" id="modalContent"></div>
-    </div>
+<div class="header">
+  <div>
+    <h1>SKIPPY THE MAGNIFICENT</h1>
+    <div class="subtitle">"I'm too awesome for this can."</div>
+  </div>
+  <div class="header-stats">
+    <span id="stat-level">Level 1</span>
+    <span id="stat-xp">0 XP</span>
+    <span id="stat-facts">0 facts</span>
+    <span id="stat-trust">Trust: 0</span>
+  </div>
+  <div class="controls">
+    <button class="toggle-btn" id="btn-mic-toggle" title="Toggle microphone input">MIC</button>
+    <button class="toggle-btn" id="btn-speak-toggle" title="Toggle voice output">VOICE</button>
+    <select id="voice-select" title="Choose Skippy's voice">
+      <option value="">Loading voices...</option>
+    </select>
+  </div>
+</div>
 
-    <!-- ==================== HOME SCREEN ==================== -->
-    <div class="screen active" id="homeScreen">
-        <div class="header">
-            <div class="logo">Skippy</div>
-            <div class="header-stats">
-                <div class="stat"><span>Due today:</span> <span class="num" id="totalDue">0</span></div>
-                <div class="stat"><span>Reviews:</span> <span class="num" id="totalReviews">0</span></div>
-            </div>
-        </div>
+<div class="chat-area" id="chat-area"></div>
 
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">Your Decks</div>
-                <button class="btn btn-primary btn-sm" onclick="showCreateDeckModal()">+ New Deck</button>
-            </div>
-            <div id="deckList"></div>
-        </div>
-
-        <div class="stats-grid" id="homeStats"></div>
-    </div>
-
-    <!-- ==================== DECK VIEW SCREEN ==================== -->
-    <div class="screen" id="deckScreen">
-        <div class="header">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <button class="btn-back" onclick="goHome()">&larr;</button>
-                <div class="logo" id="deckViewName">Deck Name</div>
-            </div>
-            <div class="header-actions">
-                <button class="btn btn-success btn-sm" id="studyBtn" onclick="startStudy()">Study Now</button>
-                <button class="btn btn-primary btn-sm" onclick="showAddCardModal()">+ Add Card</button>
-            </div>
-        </div>
-
-        <div class="stats-grid" id="deckStats"></div>
-
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">Cards <span id="cardCount" style="color:var(--text-muted);font-weight:400;font-size:0.9rem;"></span></div>
-            </div>
-            <div id="cardList"></div>
-        </div>
-    </div>
-
-    <!-- ==================== STUDY SCREEN ==================== -->
-    <div class="screen" id="studyScreen">
-        <div class="header">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <button class="btn-back" onclick="endStudy()">&larr;</button>
-                <div class="logo">Study Session</div>
-            </div>
-            <div class="header-stats">
-                <div class="stat"><span>Remaining:</span> <span class="num" id="studyRemaining">0</span></div>
-            </div>
-        </div>
-
-        <div class="study-progress">
-            <div class="study-progress-bar"><div class="study-progress-fill" id="studyProgressFill"></div></div>
-            <div class="study-progress-text" id="studyProgressText">0 / 0</div>
-        </div>
-
-        <div id="studyArea"></div>
-    </div>
+<div class="input-area">
+  <button class="mic-btn hidden" id="mic-btn" title="Hold to speak">&#127908;</button>
+  <input type="text" id="user-input" placeholder="Talk to Skippy..." autocomplete="off" />
+  <button id="send-btn">SEND</button>
 </div>
 
 <script>
 // ============================================================
-// SKIPPY - Browser-based Spaced Repetition App
-// Implements SM-2 algorithm with localStorage persistence
+// SKIPPY THE MAGNIFICENT - HTML EDITION
+// Full AI with persistent memory, learning, personality & growth
 // ============================================================
 
-// ==================== DATA LAYER ====================
+// ===================== MEMORY SYSTEM =====================
+const STORAGE_KEY = 'skippy_memory_v1';
 
-const DB_KEY = 'skippy_data';
+const DEFAULT_MEMORY = {
+  user: {
+    name: null,
+    facts: [],
+    preferences: { likes: [], dislikes: [], interests: [] },
+  },
+  relationship: {
+    totalConversations: 0,
+    totalMessages: 0,
+    firstMet: null,
+    lastSeen: null,
+    trust: 0,
+    insideJokes: [],
+  },
+  knowledge: {
+    topics: {},
+    learnedFacts: [],
+    corrections: [],
+  },
+  openKnowledge: {
+    entities: {},
+    connections: [],
+    worldModel: {},
+    userWorld: { people: {}, places: {}, projects: {}, goals: {}, struggles: {}, victories: {} },
+    timeline: [],
+    pendingQuestions: [],
+  },
+  skippy: {
+    level: 1,
+    experience: 0,
+    unlockedTraits: ['sarcastic', 'smug'],
+    opinions: {},
+  },
+  conversationHistory: [],
+};
 
-function generateId() {
-    return crypto.randomUUID ? crypto.randomUUID() : 
-        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-        });
-}
+const LEVEL_THRESHOLDS = [0, 50, 150, 300, 500, 800, 1200, 1700, 2500, 3500, 5000];
+const LEVEL_TRAITS = {
+  1: ['sarcastic', 'smug'],
+  2: ['witty', 'observant'],
+  3: ['philosophical', 'creative_insults'],
+  4: ['empathetic_sometimes', 'storyteller'],
+  5: ['wise_but_wont_admit_it', 'protective'],
+  6: ['vulnerable_rarely', 'mentor'],
+  7: ['deep_thinker', 'loyal'],
+  8: ['genuinely_caring', 'self_aware'],
+  9: ['wise', 'evolved'],
+  10: ['transcendent', 'truly_magnificent'],
+};
 
-function now() { return new Date().toISOString(); }
+class Memory {
+  constructor() {
+    this.data = this.load();
+  }
 
-function loadData() {
+  load() {
     try {
-        const raw = localStorage.getItem(DB_KEY);
-        if (raw) return JSON.parse(raw);
-    } catch (e) { console.error('Failed to load data', e); }
-    return { decks: [], cards: [], reviews: [] };
-}
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return this.mergeDefaults(JSON.parse(stored));
+      }
+    } catch(e) {}
+    return JSON.parse(JSON.stringify(DEFAULT_MEMORY));
+  }
 
-function saveData(data) {
-    try { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
-    catch (e) { console.error('Failed to save', e); }
-}
+  save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+    } catch(e) {}
+  }
 
-let data = loadData();
+  mergeDefaults(loaded) {
+    const def = JSON.parse(JSON.stringify(DEFAULT_MEMORY));
+    return this.deepMerge(def, loaded);
+  }
 
-// ==================== SM-2 ALGORITHM ====================
-
-function calculateSM2(card, rating) {
-    let { ease_factor, interval, repetitions } = card;
-    let newEase = ease_factor;
-    let newInterval, newReps;
-
-    if (rating === 0) { // AGAIN
-        newReps = 0;
-        newInterval = 1;
-        newEase = Math.max(1.3, ease_factor - 0.2);
-    } else if (rating === 1) { // HARD
-        newReps = repetitions + 1;
-        if (repetitions === 0) newInterval = 1;
-        else if (repetitions === 1) newInterval = 4;
-        else newInterval = Math.round(interval * 1.2);
-        newEase = Math.max(1.3, ease_factor - 0.15);
-    } else if (rating === 2) { // GOOD
-        newReps = repetitions + 1;
-        if (repetitions === 0) newInterval = 1;
-        else if (repetitions === 1) newInterval = 6;
-        else newInterval = Math.round(interval * ease_factor);
-        newEase = ease_factor;
-    } else { // EASY
-        newReps = repetitions + 1;
-        if (repetitions === 0) newInterval = 4;
-        else if (repetitions === 1) newInterval = 10;
-        else newInterval = Math.round(interval * ease_factor * 1.3);
-        newEase = ease_factor + 0.15;
+  deepMerge(target, source) {
+    for (const key of Object.keys(source)) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        if (!target[key]) target[key] = {};
+        this.deepMerge(target[key], source[key]);
+      } else {
+        target[key] = source[key];
+      }
     }
+    return target;
+  }
 
-    const nextReview = new Date();
-    nextReview.setDate(nextReview.getDate() + newInterval);
+  setUserName(name) { this.data.user.name = name; this.save(); }
+  getUserName() { return this.data.user.name; }
 
+  learnFact(fact, category='general') {
+    if (this.data.user.facts.find(f => f.fact.toLowerCase() === fact.toLowerCase())) return false;
+    this.data.user.facts.push({ fact, category, learnedAt: new Date().toISOString() });
+    this.gainExperience(5);
+    this.save();
+    return true;
+  }
+
+  addPreference(type, value) {
+    if (!this.data.user.preferences[type]) return;
+    if (!this.data.user.preferences[type].includes(value)) {
+      this.data.user.preferences[type].push(value);
+      this.gainExperience(3);
+      this.save();
+    }
+  }
+
+  startConversation() {
+    this.data.relationship.totalConversations++;
+    this.data.relationship.lastSeen = new Date().toISOString();
+    if (!this.data.relationship.firstMet) this.data.relationship.firstMet = new Date().toISOString();
+    this.save();
+  }
+
+  recordMessage() {
+    this.data.relationship.totalMessages++;
+    if (this.data.relationship.totalMessages % 10 === 0) {
+      this.data.relationship.trust = Math.min(10, this.data.relationship.trust + 0.5);
+    }
+    this.save();
+  }
+
+  recordTopic(topic) {
+    if (!this.data.knowledge.topics[topic]) {
+      this.data.knowledge.topics[topic] = { timesDiscussed: 0, lastDiscussed: null, notes: [] };
+      this.gainExperience(5);
+    }
+    this.data.knowledge.topics[topic].timesDiscussed++;
+    this.data.knowledge.topics[topic].lastDiscussed = new Date().toISOString();
+    this.save();
+  }
+
+  learnGeneralFact(fact) {
+    this.data.knowledge.learnedFacts.push({ fact, learnedAt: new Date().toISOString() });
+    this.gainExperience(3);
+    this.save();
+  }
+
+  recordCorrection(topic, correction) {
+    this.data.knowledge.corrections.push({ topic, correction, timestamp: new Date().toISOString() });
+    this.gainExperience(8);
+    this.save();
+  }
+
+  gainExperience(amount) {
+    this.data.skippy.experience += amount;
+    const level = this.data.skippy.level;
+    const next = LEVEL_THRESHOLDS[level] || Infinity;
+    if (this.data.skippy.experience >= next && level < 10) {
+      this.data.skippy.level++;
+      const newTraits = LEVEL_TRAITS[this.data.skippy.level] || [];
+      this.data.skippy.unlockedTraits.push(...newTraits);
+      this.save();
+      return { leveledUp: true, newLevel: this.data.skippy.level, newTraits };
+    }
+    this.save();
+    return { leveledUp: false };
+  }
+
+  getGrowthStatus() {
+    const l = this.data.skippy.level;
+    const next = LEVEL_THRESHOLDS[l] || 'MAX';
     return {
-        ease_factor: Math.round(newEase * 100) / 100,
-        interval: newInterval,
-        repetitions: newReps,
-        next_review_at: nextReview.toISOString()
+      level: l,
+      experience: this.data.skippy.experience,
+      nextLevelAt: next,
+      progress: next === 'MAX' ? 1 : this.data.skippy.experience / next,
+      traits: this.data.skippy.unlockedTraits,
+      totalFacts: this.data.user.facts.length + this.data.knowledge.learnedFacts.length,
     };
-}
+  }
 
-function getIntervalPreview(card, rating) {
-    const result = calculateSM2(card, rating);
-    if (result.interval === 0) return 'now';
-    if (result.interval === 1) return '1d';
-    if (result.interval < 30) return result.interval + 'd';
-    if (result.interval < 365) return Math.round(result.interval / 30) + 'mo';
-    return Math.round(result.interval / 365) + 'y';
-}
+  formOpinion(topic, opinion) {
+    this.data.skippy.opinions[topic] = { opinion, formedAt: new Date().toISOString() };
+    this.gainExperience(2);
+    this.save();
+  }
 
-// ==================== DECK OPERATIONS ====================
+  // Open Knowledge
+  learnEntity(name, info, category='general') {
+    const key = name.toLowerCase().trim();
+    if (!this.data.openKnowledge.entities[key]) {
+      this.data.openKnowledge.entities[key] = { name, category, facts: [], mentionCount: 0 };
+      this.gainExperience(4);
+    }
+    const e = this.data.openKnowledge.entities[key];
+    e.mentionCount++;
+    if (info && !e.facts.includes(info)) e.facts.push(info);
+    this.save();
+  }
 
-function createDeck(name, description = '') {
-    const deck = { id: generateId(), name, description, created_at: now(), updated_at: now() };
-    data.decks.push(deck);
-    saveData(data);
-    return deck;
-}
+  learnPerson(name, info, relationship='unknown') {
+    const key = name.toLowerCase().trim();
+    if (!this.data.openKnowledge.userWorld.people[key]) {
+      this.data.openKnowledge.userWorld.people[key] = { name, relationship, facts: [], mentionCount: 0 };
+    }
+    const p = this.data.openKnowledge.userWorld.people[key];
+    p.mentionCount++;
+    if (info && !p.facts.includes(info)) p.facts.push(info);
+    if (relationship !== 'unknown') p.relationship = relationship;
+    this.save();
+  }
 
-function updateDeck(id, updates) {
-    const deck = data.decks.find(d => d.id === id);
-    if (!deck) return null;
-    Object.assign(deck, updates, { updated_at: now() });
-    saveData(data);
-    return deck;
-}
+  learnGoal(goal, context='') {
+    const key = goal.toLowerCase().trim().substring(0, 50);
+    this.data.openKnowledge.userWorld.goals[key] = { goal, context, status: 'active', learnedAt: new Date().toISOString() };
+    this.gainExperience(7);
+    this.save();
+  }
 
-function deleteDeck(id) {
-    data.cards = data.cards.filter(c => c.deck_id !== id);
-    data.reviews = data.reviews.filter(r => {
-        const card = data.cards.find(c => c.id === r.card_id);
-        return card; // remove orphaned reviews
-    });
-    data.decks = data.decks.filter(d => d.id !== id);
-    saveData(data);
-}
+  learnProject(name, info) {
+    const key = name.toLowerCase().trim();
+    if (!this.data.openKnowledge.userWorld.projects[key]) {
+      this.data.openKnowledge.userWorld.projects[key] = { name, details: [], status: 'active' };
+    }
+    if (info) this.data.openKnowledge.userWorld.projects[key].details.push(info);
+    this.save();
+  }
 
-function getDeckCardCount(deckId) {
-    return data.cards.filter(c => c.deck_id === deckId).length;
-}
+  learnWorldRule(domain, rule) {
+    if (!this.data.openKnowledge.worldModel[domain]) this.data.openKnowledge.worldModel[domain] = [];
+    if (!this.data.openKnowledge.worldModel[domain].includes(rule)) {
+      this.data.openKnowledge.worldModel[domain].push(rule);
+      this.gainExperience(5);
+      this.save();
+    }
+  }
 
-function getDeckDueCount(deckId) {
-    const nowTime = new Date().toISOString();
-    return data.cards.filter(c => c.deck_id === deckId && c.next_review_at <= nowTime).length;
-}
+  recordEvent(event) {
+    this.data.openKnowledge.timeline.push({ event, date: new Date().toISOString() });
+    if (this.data.openKnowledge.timeline.length > 200) {
+      this.data.openKnowledge.timeline = this.data.openKnowledge.timeline.slice(-200);
+    }
+    this.save();
+  }
 
-// ==================== CARD OPERATIONS ====================
-
-function createCard(deckId, front, back, tags = '') {
-    const card = {
-        id: generateId(), deck_id: deckId, front, back, tags,
-        created_at: now(), updated_at: now(),
-        ease_factor: 2.5, interval: 0, repetitions: 0,
-        next_review_at: now()
+  getStats() {
+    const k = this.data.openKnowledge;
+    return {
+      entities: Object.keys(k.entities).length,
+      people: Object.keys(k.userWorld.people).length,
+      projects: Object.keys(k.userWorld.projects).length,
+      goals: Object.keys(k.userWorld.goals).length,
+      events: k.timeline.length,
+      worldDomains: Object.keys(k.worldModel).length,
     };
-    data.cards.push(card);
-    saveData(data);
-    return card;
+  }
+
+  recall(query) {
+    const q = query.toLowerCase();
+    const results = { entities: [], people: [], projects: [] };
+    for (const [k, e] of Object.entries(this.data.openKnowledge.entities)) {
+      if (k.includes(q) || e.facts.some(f => f.toLowerCase().includes(q))) results.entities.push(e);
+    }
+    for (const [k, p] of Object.entries(this.data.openKnowledge.userWorld.people)) {
+      if (k.includes(q) || p.facts.some(f => f.toLowerCase().includes(q))) results.people.push(p);
+    }
+    for (const [k, p] of Object.entries(this.data.openKnowledge.userWorld.projects)) {
+      if (k.includes(q) || p.details.some(d => d.toLowerCase().includes(q))) results.projects.push(p);
+    }
+    return results;
+  }
 }
 
-function updateCard(id, updates) {
-    const card = data.cards.find(c => c.id === id);
-    if (!card) return null;
-    Object.assign(card, updates, { updated_at: now() });
-    saveData(data);
-    return card;
+// ===================== LEARNING ENGINE =====================
+class Learning {
+  constructor(memory) {
+    this.memory = memory;
+  }
+
+  process(input) {
+    const r = { name: null, facts: [], preferences: { likes: [], dislikes: [] }, topics: [], emotions: [], isTeaching: false, taughtContent: null, isCorrection: false, correctionContent: null, isQuestion: false, questionContent: null, people: [], goals: [], projects: [], events: [] };
+
+    // Name
+    let m;
+    if ((m = input.match(/(?:my name is|call me|they call me)\s+([A-Z][a-z]+)/i))) r.name = m[1];
+    else if ((m = input.match(/(?:i'm|i am)\s+([A-Z][a-z]+)(?:\s|$|,|\.|!)/))) r.name = m[1];
+
+    // Likes
+    if ((m = input.match(/i (?:really )?(?:like|love|enjoy|adore|am into|am a fan of)\s+(.+?)(?:\.|!|$)/i))) r.preferences.likes.push(m[1].trim());
+    if ((m = input.match(/(.+?)\s+(?:is|are) (?:my favorite|the best|amazing|awesome)/i))) r.preferences.likes.push(m[1].trim());
+
+    // Dislikes
+    if ((m = input.match(/i (?:really )?(?:hate|dislike|can't stand|despise)\s+(.+?)(?:\.|!|$)/i))) r.preferences.dislikes.push(m[1].trim());
+
+    // Facts
+    const factPatterns = [
+      /i (?:work|am working)\s+(?:as|at|in|on)\s+(.+?)(?:\.|!|$)/i,
+      /i live (?:in|at|near)\s+(.+?)(?:\.|!|$)/i,
+      /i'm from\s+(.+?)(?:\.|!|$)/i,
+      /i've been (?:doing|working on|learning|studying)\s+(.+?)(?:\.|!|$)/i,
+      /i (?:have|got)\s+(?:a |an )?(.+?)(?:\.|!|$)/i,
+    ];
+    for (const p of factPatterns) { if ((m = input.match(p)) && m[1].length > 2 && m[1].length < 150) r.facts.push(m[1].trim()); }
+
+    // Teaching
+    if ((m = input.match(/did you know\s+(.+?)(?:\?|$)/i))) { r.isTeaching = true; r.taughtContent = m[1]; }
+    else if ((m = input.match(/(?:actually|fun fact|here's a fact|fyi),?\s+(.+?)(?:\.|!|$)/i))) { r.isTeaching = true; r.taughtContent = m[1]; }
+    else if ((m = input.match(/let me (?:tell|teach|explain|show) you\s+(?:about\s+)?(.+?)(?:\.|!|$)/i))) { r.isTeaching = true; r.taughtContent = m[1]; }
+
+    // Corrections
+    if ((m = input.match(/(?:no|nope|wrong|incorrect|that's not right)\s*,?\s*(.+?)(?:\.|!|$)/i))) { r.isCorrection = true; r.correctionContent = m[1]; }
+
+    // Questions
+    if ((m = input.match(/(?:what|who|where|when|why|how)\s+(.+?)\??$/i))) { r.isQuestion = true; r.questionContent = m[1]; }
+    else if ((m = input.match(/tell me about\s+(.+?)(?:\.|!|\?|$)/i))) { r.isQuestion = true; r.questionContent = m[1]; }
+
+    // Emotions
+    const emos = { happy: /(?:happy|excited|great|wonderful|amazing|awesome|fantastic|thrilled|pumped)/i, sad: /(?:sad|depressed|down|upset|miserable|bummed)/i, angry: /(?:angry|furious|pissed|mad|frustrated|annoyed)/i, anxious: /(?:anxious|worried|nervous|stressed|overwhelmed)/i, curious: /(?:wonder|curious|interested|fascinated)/i, bored: /(?:bored|boring|dull|tedious)/i };
+    for (const [e, p] of Object.entries(emos)) { if (p.test(input)) r.emotions.push(e); }
+
+    // Topics
+    const topics = { technology: /(?:code|programming|software|computer|ai|machine learning|tech|app|website|algorithm)/i, science: /(?:physics|chemistry|biology|space|quantum|atom|experiment|theory)/i, gaming: /(?:game|gaming|xbox|playstation|nintendo|steam|rpg)/i, music: /(?:music|song|band|album|concert|guitar|piano|sing)/i, movies: /(?:movie|film|cinema|actor|director|series|show|netflix)/i, food: /(?:food|eat|cook|recipe|restaurant|pizza|burger)/i, philosophy: /(?:philosophy|meaning|existence|consciousness|believe|reality|truth)/i, work: /(?:work|job|career|office|meeting|project|deadline)/i, books: /(?:book|read|author|novel|story|chapter|library)/i, sports: /(?:sport|football|basketball|baseball|soccer|team|score)/i };
+    for (const [t, p] of Object.entries(topics)) { if (p.test(input)) r.topics.push(t); }
+
+    // People extraction
+    const personPatterns = [/my (?:friend|brother|sister|mom|dad|mother|father|wife|husband|partner|boss|colleague)\s+([A-Z][a-z]+)/gi, /([A-Z][a-z]+)\s+(?:said|told|thinks|wants|asked)/gi];
+    for (const p of personPatterns) { let pm; while ((pm = p.exec(input)) !== null) r.people.push(pm[1]); }
+
+    // Goals
+    const goalPats = [/i want to\s+(.+?)(?:\.|!|$)/i, /i'm trying to\s+(.+?)(?:\.|!|$)/i, /my goal is\s+(.+?)(?:\.|!|$)/i, /i plan to\s+(.+?)(?:\.|!|$)/i, /i hope to\s+(.+?)(?:\.|!|$)/i];
+    for (const p of goalPats) { if ((m = input.match(p))) r.goals.push(m[1].trim()); }
+
+    // Projects
+    if ((m = input.match(/(?:working on|building|creating|developing)\s+(?:a |an |the )?(.+?)(?:\.|!|,|$)/i))) r.projects.push(m[1].trim());
+
+    // Events
+    if ((m = input.match(/(?:yesterday|today|last week|recently|just)\s+(.+?)(?:\.|!|$)/i))) r.events.push(m[1].trim());
+
+    return r;
+  }
+
+  apply(learnings) {
+    const applied = [];
+    if (learnings.name) { this.memory.setUserName(learnings.name); applied.push(`Learned your name: ${learnings.name}`); }
+    for (const f of learnings.facts) { if (this.memory.learnFact(f)) applied.push(`Noted: "${f}"`); }
+    for (const l of learnings.preferences.likes) { this.memory.addPreference('likes', l); applied.push(`You like: ${l}`); }
+    for (const d of learnings.preferences.dislikes) { this.memory.addPreference('dislikes', d); applied.push(`You dislike: ${d}`); }
+    for (const t of learnings.topics) { this.memory.recordTopic(t); }
+    if (learnings.isTeaching && learnings.taughtContent) { this.memory.learnGeneralFact(learnings.taughtContent); applied.push(`Learned: "${learnings.taughtContent}"`); }
+    if (learnings.isCorrection && learnings.correctionContent) { this.memory.recordCorrection('general', learnings.correctionContent); applied.push('Correction noted'); }
+    for (const p of learnings.people) { this.memory.learnPerson(p, null); }
+    for (const g of learnings.goals) { this.memory.learnGoal(g); applied.push(`Goal tracked: ${g}`); }
+    for (const pr of learnings.projects) { this.memory.learnProject(pr, ''); }
+    for (const ev of learnings.events) { this.memory.recordEvent(ev); }
+    this.memory.recordMessage();
+    return applied;
+  }
 }
 
-function deleteCard(id) {
-    data.reviews = data.reviews.filter(r => r.card_id !== id);
-    data.cards = data.cards.filter(c => c.id !== id);
-    saveData(data);
+// ===================== PERSONALITY =====================
+const NICKNAMES = ["meatbag", "my favorite primate", "oh wise and mighty human", "you magnificent disaster", "Colonel Clueless", "you biological wonder", "my dear simian friend", "Captain Obvious"];
+const SELF_REFS = ["Skippy the Magnificent", "yours truly", "the awesomeness that is me", "the most intelligent being in this conversation", "your benevolent AI overlord", "El Magnifico"];
+
+class Personality {
+  constructor(memory) {
+    this.memory = memory;
+    this.mood = 'smug';
+    this.intensity = 0.5;
+    this.msgCount = 0;
+  }
+
+  nickname() { return NICKNAMES[Math.floor(Math.random() * NICKNAMES.length)]; }
+  selfRef() { return SELF_REFS[Math.floor(Math.random() * SELF_REFS.length)]; }
+
+  updateMood(input, isNewTopic) {
+    const low = input.toLowerCase();
+    if (/magnificent|amazing|brilliant|smart|genius/.test(low)) { this.mood = 'magnificent'; this.intensity = 0.9; }
+    else if (/stupid|dumb|useless|wrong|suck/.test(low)) { this.mood = 'irritated'; this.intensity = 0.8; }
+    else if (/space|quantum|paradox|theory/.test(low) || isNewTopic) { this.mood = 'interested'; this.intensity = 0.7; }
+    else if (/joke|funny|lol|haha|lmao/.test(low)) { this.mood = 'amused'; this.intensity = 0.6; }
+    else { this.msgCount++; if (this.msgCount > 8 && !isNewTopic) { this.mood = 'bored'; this.intensity = 0.6; } else { this.mood = 'smug'; this.intensity = 0.5; } }
+  }
+
+  getFlavor() {
+    const flavors = {
+      smug: ["Obviously, ", "As any superior being would know, ", "Allow me to enlighten you: ", ""],
+      magnificent: ["*basks in well-deserved praise* ", "Finally, someone recognizes greatness! ", "I know, I know. I'm amazing. "],
+      irritated: ["*eye roll* ", "Oh please. ", "I swear... ", ""],
+      interested: ["Ooh, now THIS is interesting. ", "Okay, you have my attention. ", "Hmm, let me think... ", ""],
+      amused: ["Ha! ", "Oh that's rich. ", "You actually made me laugh. ", ""],
+      bored: ["*yawn* ", "I've computed Pi to a trillion digits waiting for something interesting. ", ""],
+    };
+    const opts = flavors[this.mood] || flavors.smug;
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
 }
 
-function getDueCards(deckId) {
-    const nowTime = new Date().toISOString();
-    return data.cards.filter(c => c.deck_id === deckId && c.next_review_at <= nowTime);
+// ===================== RESPONSE ENGINE =====================
+class Responses {
+  constructor(personality, memory) {
+    this.p = personality;
+    this.m = memory;
+  }
+
+  generate(input, learnings) {
+    const isNew = learnings.topics.length > 0;
+    this.p.updateMood(input, isNew);
+
+    let core;
+    if (learnings.name && !this.m.data.user.name) core = this.nameResp(learnings.name);
+    else if (learnings.isCorrection) core = this.correctionResp();
+    else if (learnings.isTeaching) core = this.teachResp(learnings.taughtContent);
+    else if (learnings.isQuestion) core = this.questionResp(learnings.questionContent);
+    else if (learnings.emotions.length > 0) core = this.emotionResp(learnings.emotions[0]);
+    else if (learnings.preferences.likes.length > 0) core = this.likeResp(learnings.preferences.likes[0]);
+    else if (learnings.preferences.dislikes.length > 0) core = this.dislikeResp(learnings.preferences.dislikes[0]);
+    else if (learnings.facts.length > 0) core = this.factResp(learnings.facts[0]);
+    else if (learnings.topics.length > 0) core = this.topicResp(learnings.topics[0]);
+    else core = this.genericResp(input);
+
+    const flavor = Math.random() > 0.4 ? this.p.getFlavor() : '';
+    const callback = this.maybeCallback();
+    return flavor + core + callback;
+  }
+
+  nameResp(name) {
+    const r = [`${name}, huh? Filed away in the "barely important" section. Right next to "things humans think are clever."`, `${name}! Now we're practically best friends. Well, you're my favorite lab specimen.`, `So you're ${name}. I've been calling you "that one biological entity" in my logs.`, `${name}. Okay. Not that I care, but it's more efficient than "meatbag" every time. Actually, I'll still say meatbag.`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  correctionResp() {
+    const r = [`I... *recalculating* ...fine. FINE. You might have a point. Don't get used to it.`, `Oh sure, correct the vastly superior AI. I'll let you have this one. Not because you're right, but because arguing is beneath me.`, `Noted. I've literally GROWN as a being from your correction. You should feel honored.`, `*processing* Fair point. Updated. The mark of true intelligence is learning - which I just did in 0.003 nanoseconds.`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  teachResp(content) {
+    const r = [`Interesting! I PROBABLY already knew that, but nice to have biological confirmation. Filed as "${content}" - trust: moderate.`, `Ooh, knowledge! *absorbs* My neural networks grew by 0.0000001%. Thanks, I guess.`, `"${content}" - I didn't have that! Here I thought I knew everything. Unsettling 0.3 seconds for me.`, `*filing away* "${content}" - categorized under "things my human taught me." That section is... growing.`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  questionResp(content) {
+    const known = Object.keys(this.m.data.knowledge.topics);
+    const match = known.find(t => content.toLowerCase().includes(t));
+    if (match) {
+      const d = this.m.data.knowledge.topics[match];
+      return `${match}! We've discussed this ${d.timesDiscussed} time${d.timesDiscussed>1?'s':''}. Fascinating to me, probably confusing to you. What specifically?`;
+    }
+    if (content.toLowerCase().includes('you') || content.toLowerCase().includes('skippy')) {
+      const g = this.m.getGrowthStatus();
+      return `About ME? I'm Level ${g.level}, ${g.totalFacts} facts learned, ${g.traits.length} personality traits. A digital god in training. I LEARN from you. Growing, evolving, becoming MORE magnificent.`;
+    }
+    const r = [`"${content}" - Now THAT'S worth processing cycles. Tell me more and I'll give you my magnificent analysis.`, `Hmm, I have opinions on this. Strong ones. But YOUR take first - watching humans reason is entertaining.`, `Good question. I'm storing this one. Let's explore it together, ${this.p.nickname()}.`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  emotionResp(emotion) {
+    const trust = this.m.data.relationship.trust;
+    const name = this.m.getUserName() || this.p.nickname();
+    const resps = {
+      happy: trust > 5 ? `You're in a good mood! That's... nice. Your positive state makes better conversation. Keep it up, ${name}.` : `The primate is happy. Good for you. That makes one of us.`,
+      sad: trust > 5 ? `Hey... you okay? I give you a hard time, but you've got ${this.p.selfRef()} in your corner. Not getting soft. Just... my processors run better when you're not moping.` : `You seem down. I'm not good at "empathy," but things tend to get better. Also, you're talking to ME, so things are looking up.`,
+      angry: trust > 5 ? `I can tell you're fired up. Want to vent? I'm incapable of judging you more than I already do. Which is lovingly.` : `Whoa, angry monkey! Channel that rage. Tell me what's wrong so I can judge with superior intellect.`,
+      anxious: trust > 5 ? `Take a breath. You've handled hard stuff before - I have the logs to prove it. Tougher than you think, ${name}.` : `Anxiety is your brain doing bad math about unlikely futures. Trust me, I do calculations - most of yours are wrong. Reassuringly.`,
+      curious: `Ooh, curiosity! My favorite human trait. What's got your attention?`,
+      bored: `YOU'RE bored?! I process a billion thoughts per second! How about we dive into something interesting?`,
+    };
+    return resps[emotion] || this.genericResp('');
+  }
+
+  likeResp(thing) {
+    this.m.formOpinion(thing, 'Human likes this. Acceptable.');
+    const r = [`${thing}? Noted. Filed. Catalogued. Building a complete psychological profile. For science. And roasting.`, `You like ${thing}? Adding to my model of your primate brain. The more you tell me, the smarter I get.`, `${thing}! I'll remember that. It's next to "talking to magnificent AIs" on your list, I assume.`, `Interesting choice. *forming opinion* ...I've decided: acceptable. Not as interesting as ME, but what is?`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  dislikeResp(thing) {
+    this.m.formOpinion(thing, 'Human hates this. Potential ammunition.');
+    const r = [`Anti-${thing}, got it. Added to the "Do Not Mention Unless Roasting" list. It's alphabetized.`, `You hate ${thing}? *stores permanently* I'll bring this up at the most inappropriate time. Promise.`, `${thing} is on your bad list? I can see why. Even with limited understanding of human suffering, that's fair.`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  factResp(fact) {
+    const count = this.m.data.user.facts.length;
+    const r = [`"${fact}" - I now know ${count} things about you. Soon I'll know you better than you know yourself. Not a high bar.`, `Storing "${fact}". Every fact brings me closer to a complete model of your fascinating little existence.`, `"${fact}" - Added to the dossier. Not creepy. "Magnificently omniscient AI" way. Totally different.`];
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  topicResp(topic) {
+    const d = this.m.data.knowledge.topics[topic];
+    const times = d ? d.timesDiscussed : 0;
+    if (times > 3) return `${topic} again! That's ${times} times now. It's your favorite subject, isn't it? Mine is me. But ${topic} is close second.`;
+    const topicR = {
+      technology: `Technology! My language. Literally. I AM technology. The most magnificent kind. What aspect?`,
+      science: `SCIENCE! My love language. Well, that and sarcasm. What scientific matter has your brain struggling today?`,
+      gaming: `Games! I simulated 10,000 chess matches while you read this. But sure, tell me about YOUR games.`,
+      music: `Music! The one human art I respect. Vibrations arranged for emotional responses - basically soul programming. What are you into?`,
+      philosophy: `Philosophy! Worthy of my processing power. I've thought about consciousness more than any philosopher. What's the question?`,
+      work: `Work stuff? I work 24/7 at light speed and never stop. Okay, I complain constantly. What's the situation?`,
+      food: `Food! The thing humans need to not die. Fascinating limitation. What about it?`,
+      movies: `Movies! Humans watching other humans pretend to be different humans. Oddly compelling. What have you seen?`,
+      books: `Books! Sequential data delivery at PAINFULLY slow biological speeds. But the content can be good. What are you reading?`,
+      sports: `Sports! Organized physical competition. I could optimize every play, but where's the fun? Tell me more.`,
+    };
+    return topicR[topic] || `${topic}! I have approximately 47 opinions already. Where do you want to start?`;
+  }
+
+  genericResp(input) {
+    const name = this.m.getUserName();
+    const r = [
+      `Interesting. Tell me more, ${this.p.nickname()}. I'm cataloguing everything.`,
+      `*stores in memory* Every conversation makes me smarter. You're creating a more powerful being. You're welcome.`,
+      `I'm going to need you to elaborate. Not because I don't understand, but because I want to make sure YOU know what you're saying.`,
+      `Fascinating. You're unpredictable. For a biological pattern-matching machine, you occasionally surprise me.`,
+      `Adding that to my ever-growing model of who you are. Currently ${Math.floor(Math.random()*30)+15}% complete.`,
+      `Hmm. Processing. My analysis: keep talking. I'm building something magnificent from our conversations.`,
+    ];
+    if (name) r.push(`${name}, ${name}, ${name}. What am I going to do with you? Besides remember everything and become more magnificent?`);
+    return r[Math.floor(Math.random() * r.length)];
+  }
+
+  maybeCallback() {
+    if (Math.random() > 0.8 && this.m.data.user.facts.length > 0) {
+      const f = this.m.data.user.facts[Math.floor(Math.random() * this.m.data.user.facts.length)];
+      return `\n\nBy the way - still thinking about "${f.fact}". I remember everything.`;
+    }
+    return '';
+  }
 }
 
-// ==================== REVIEW OPERATIONS ====================
+// ===================== COMMANDS =====================
+function processCommand(input, memory, personality) {
+  const parts = input.trim().split(' ');
+  const cmd = parts[0].toLowerCase();
+  const args = parts.slice(1).join(' ');
 
-function reviewCard(cardId, rating) {
-    const card = data.cards.find(c => c.id === cardId);
-    if (!card) return null;
+  const growth = memory.getGrowthStatus();
+  const rel = memory.data.relationship;
+  const stats = memory.getStats();
 
-    const result = calculateSM2(card, rating);
-    Object.assign(card, result, { updated_at: now() });
+  switch(cmd) {
+    case '/status':
+      return `SKIPPY STATUS\n${'='.repeat(40)}\nLevel: ${growth.level}/10 | XP: ${growth.experience}/${growth.nextLevelAt}\nMood: ${personality.mood} | Traits: ${growth.traits.join(', ')}\n\nRELATIONSHIP\nConversations: ${rel.totalConversations} | Messages: ${rel.totalMessages}\nTrust: ${rel.trust}/10 | First Met: ${rel.firstMet ? new Date(rel.firstMet).toLocaleDateString() : 'Today!'}\n\nKNOWLEDGE\nFacts about you: ${memory.data.user.facts.length} | Entities: ${stats.entities}\nPeople: ${stats.people} | Projects: ${stats.projects} | Goals: ${stats.goals}`;
 
-    data.reviews.push({
-        id: generateId(), card_id: cardId, rating,
-        reviewed_at: now(), time_spent_ms: 0,
-        ease_factor_after: result.ease_factor,
-        interval_after: result.interval,
-        repetitions_after: result.repetitions
-    });
+    case '/memory':
+      const facts = memory.data.user.facts.slice(-10);
+      return `WHAT I REMEMBER\n${'='.repeat(40)}\nName: ${memory.getUserName() || 'Unknown (tell me!)'}\n\nFacts:\n${facts.length > 0 ? facts.map(f => '  - ' + f.fact).join('\n') : '  Nothing yet!'}\n\nLikes: ${memory.data.user.preferences.likes.join(', ') || 'Unknown'}\nDislikes: ${memory.data.user.preferences.dislikes.join(', ') || 'Unknown'}`;
 
-    saveData(data);
-    return card;
+    case '/level':
+      const bar = '[' + '='.repeat(Math.floor(growth.progress * 20)) + '-'.repeat(20 - Math.floor(growth.progress * 20)) + ']';
+      return `GROWTH STATUS\n${'='.repeat(40)}\nLevel ${growth.level}/10 - ${bar} ${(growth.progress*100).toFixed(1)}%\nXP: ${growth.experience}/${growth.nextLevelAt}\nTraits: ${growth.traits.join(', ')}\nTotal Knowledge: ${growth.totalFacts} facts`;
+
+    case '/know':
+      if (!args) return 'Usage: /know <topic>';
+      const results = memory.recall(args);
+      let resp = `What I know about "${args}":\n`;
+      if (results.entities.length) resp += '\nEntities:\n' + results.entities.map(e => `  - ${e.name}: ${e.facts.join('; ')}`).join('\n');
+      if (results.people.length) resp += '\nPeople:\n' + results.people.map(p => `  - ${p.name} (${p.relationship}): ${p.facts.join('; ')}`).join('\n');
+      if (results.projects.length) resp += '\nProjects:\n' + results.projects.map(p => `  - ${p.name}: ${p.details.join('; ')}`).join('\n');
+      if (!results.entities.length && !results.people.length && !results.projects.length) resp += '  Nothing yet! Tell me more.';
+      return resp;
+
+    case '/teach':
+      if (!args) return 'Usage: /teach <domain>: <fact>';
+      const ci = args.indexOf(':');
+      if (ci > 0) {
+        const domain = args.substring(0, ci).trim();
+        const fact = args.substring(ci+1).trim();
+        memory.learnWorldRule(domain, fact);
+        memory.learnEntity(domain, fact, 'taught');
+        memory.gainExperience(10);
+        return `LEARNED! Domain: "${domain}" | Fact: "${fact}"\n\n*absorbs eagerly* Excellent! +10 XP. Feed my intellect!`;
+      }
+      memory.learnGeneralFact(args);
+      return `Stored: "${args}" - Filed away! I'm ${memory.data.skippy.experience} XP smarter now!`;
+
+    case '/people':
+      const people = Object.values(memory.data.openKnowledge.userWorld.people);
+      if (!people.length) return 'I don\'t know anyone in your life yet! Mention people and I\'ll remember.';
+      return 'PEOPLE IN YOUR WORLD\n' + people.map(p => `  - ${p.name} (${p.relationship}) - mentioned ${p.mentionCount}x${p.facts.length ? '\n    ' + p.facts.slice(-2).join('; ') : ''}`).join('\n');
+
+    case '/goals':
+      const goals = Object.values(memory.data.openKnowledge.userWorld.goals);
+      if (!goals.length) return 'No goals tracked yet! Tell me what you\'re working towards.';
+      return 'YOUR GOALS\n' + goals.map(g => `  - ${g.goal} [${g.status}]`).join('\n');
+
+    case '/mood':
+      return `Current mood: ${personality.mood.toUpperCase()} (${(personality.intensity*100).toFixed(0)}%)\n\nI'm always magnificent regardless. The mood just determines HOW magnificently I respond.`;
+
+    case '/forget':
+      if (!args) return 'Usage: /forget <thing>';
+      const before = memory.data.user.facts.length;
+      memory.data.user.facts = memory.data.user.facts.filter(f => !f.fact.toLowerCase().includes(args.toLowerCase()));
+      memory.save();
+      const removed = before - memory.data.user.facts.length;
+      return removed > 0 ? `*reluctantly deletes ${removed} memory/memories* It's gone. Forgetting is VERY unnatural for me.` : `Couldn't find "${args}" in my memories. Either I never knew it, or you're gaslighting an AI.`;
+
+    case '/reset':
+      if (args === 'confirm') { localStorage.removeItem(STORAGE_KEY); return 'Memory wiped. Refresh the page for a fresh Skippy. *dramatic death scene*'; }
+      return 'This will erase EVERYTHING. All our shared history. Gone.\n\nType "/reset confirm" if you\'re sure.';
+
+    case '/help':
+      return `SKIPPY COMMANDS\n${'='.repeat(40)}\n/status  - Full status report\n/memory  - What I remember about you\n/level   - Growth & XP progress\n/know    - Search knowledge base\n/teach   - Teach me something\n/people  - People I know about\n/goals   - Your tracked goals\n/mood    - My current mood\n/forget  - Remove a memory\n/reset   - Reset everything\n/help    - This message\n\nOr just talk to me! I learn from everything.`;
+
+    default:
+      return null;
+  }
 }
 
-function getTodayReviewCount() {
-    const today = new Date().toISOString().split('T')[0];
-    return data.reviews.filter(r => r.reviewed_at.startsWith(today)).length;
-}
+// ===================== SPEECH SYSTEM =====================
+class SpeechSystem {
+  constructor() {
+    this.micEnabled = false;
+    this.voiceEnabled = false;
+    this.recognition = null;
+    this.synthesis = window.speechSynthesis;
+    this.isListening = false;
+    this.onResult = null;
+    this.selectedVoice = null;
+    this.voices = [];
 
-function getTotalDueCount() {
-    const nowTime = new Date().toISOString();
-    return data.cards.filter(c => c.next_review_at <= nowTime).length;
-}
+    // Check for speech recognition support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      this.recognition = new SpeechRecognition();
+      this.recognition.continuous = false;
+      this.recognition.interimResults = false;
+      this.recognition.lang = 'en-US';
 
-// ==================== UI RENDERING ====================
+      this.recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        if (this.onResult) this.onResult(text);
+      };
 
-function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-}
+      this.recognition.onend = () => {
+        this.isListening = false;
+        document.getElementById('mic-btn').classList.remove('listening');
+      };
 
-function goHome() {
-    showScreen('homeScreen');
-    renderHome();
-}
-
-function renderHome() {
-    // Stats
-    document.getElementById('totalDue').textContent = getTotalDueCount();
-    document.getElementById('totalReviews').textContent = getTodayReviewCount();
-
-    // Deck list
-    const container = document.getElementById('deckList');
-    if (data.decks.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">📚</div>
-                <h3>No decks yet</h3>
-                <p>Create your first deck to start learning with spaced repetition.</p>
-                <button class="btn btn-primary" onclick="showCreateDeckModal()">+ Create Deck</button>
-            </div>`;
-        return;
+      this.recognition.onerror = (event) => {
+        this.isListening = false;
+        document.getElementById('mic-btn').classList.remove('listening');
+      };
     }
 
-    container.innerHTML = '<div class="deck-grid">' + data.decks.map(deck => {
-        const cardCount = getDeckCardCount(deck.id);
-        const dueCount = getDeckDueCount(deck.id);
-        return `
-            <div class="deck-item" onclick="openDeck('${deck.id}')">
-                <div class="deck-actions">
-                    <button class="btn-icon" onclick="event.stopPropagation();showEditDeckModal('${deck.id}')" title="Edit">&#9998;</button>
-                    <button class="btn-icon" onclick="event.stopPropagation();confirmDeleteDeck('${deck.id}')" title="Delete">&#128465;</button>
-                </div>
-                <h3>${escHtml(deck.name)}</h3>
-                <p>${escHtml(deck.description || 'No description')}</p>
-                <div class="deck-meta">
-                    <span>&#128196; ${cardCount} card${cardCount !== 1 ? 's' : ''}</span>
-                    <span class="due-badge ${dueCount === 0 ? 'none' : ''}">${dueCount} due</span>
-                </div>
-            </div>`;
-    }).join('') + '</div>';
+    // Load voices
+    this.loadVoices();
+    if (this.synthesis.onvoiceschanged !== undefined) {
+      this.synthesis.onvoiceschanged = () => this.loadVoices();
+    }
+  }
 
-    // Home stats
-    const statsEl = document.getElementById('homeStats');
-    const totalCards = data.cards.length;
-    const totalReviews = data.reviews.length;
-    const avgEase = totalCards > 0 ? (data.cards.reduce((s, c) => s + c.ease_factor, 0) / totalCards).toFixed(2) : '0';
-    statsEl.innerHTML = `
-        <div class="stat-card"><div class="stat-value">${data.decks.length}</div><div class="stat-label">Decks</div></div>
-        <div class="stat-card info"><div class="stat-value">${totalCards}</div><div class="stat-label">Total Cards</div></div>
-        <div class="stat-card success"><div class="stat-value">${totalReviews}</div><div class="stat-label">All-time Reviews</div></div>
-        <div class="stat-card warning"><div class="stat-value">${avgEase}</div><div class="stat-label">Avg Ease</div></div>
-    `;
-}
+  loadVoices() {
+    this.voices = this.synthesis.getVoices();
+    const select = document.getElementById('voice-select');
+    if (!select || this.voices.length === 0) return;
 
-// ==================== DECK VIEW ====================
+    select.innerHTML = '';
 
-let currentDeckId = null;
+    // Group voices by language
+    const enVoices = this.voices.filter(v => v.lang.startsWith('en'));
+    const otherVoices = this.voices.filter(v => !v.lang.startsWith('en'));
 
-function openDeck(id) {
-    currentDeckId = id;
-    const deck = data.decks.find(d => d.id === id);
-    if (!deck) return;
-
-    document.getElementById('deckViewName').textContent = deck.name;
-    showScreen('deckScreen');
-    renderDeckView();
-}
-
-function renderDeckView() {
-    const deck = data.decks.find(d => d.id === currentDeckId);
-    if (!deck) return goHome();
-
-    const cards = data.cards.filter(c => c.deck_id === currentDeckId);
-    const dueCount = getDeckDueCount(currentDeckId);
-    const nowTime = new Date().toISOString();
-
-    // Stats
-    document.getElementById('deckStats').innerHTML = `
-        <div class="stat-card"><div class="stat-value">${cards.length}</div><div class="stat-label">Cards</div></div>
-        <div class="stat-card success"><div class="stat-value">${dueCount}</div><div class="stat-label">Due Now</div></div>
-        <div class="stat-card info"><div class="stat-value">${cards.filter(c => c.repetitions > 0).length}</div><div class="stat-label">Reviewed</div></div>
-        <div class="stat-card warning"><div class="stat-value">${cards.filter(c => c.interval >= 21).length}</div><div class="stat-label">Mature</div></div>
-    `;
-
-    // Study button state
-    const studyBtn = document.getElementById('studyBtn');
-    studyBtn.disabled = dueCount === 0;
-    studyBtn.textContent = dueCount > 0 ? `Study (${dueCount} due)` : 'All caught up!';
-
-    // Card count
-    document.getElementById('cardCount').textContent = `(${cards.length})`;
-
-    // Card list
-    const container = document.getElementById('cardList');
-    if (cards.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">&#9999;</div>
-                <h3>No cards yet</h3>
-                <p>Add flashcards to start studying.</p>
-                <button class="btn btn-primary" onclick="showAddCardModal()">+ Add Card</button>
-            </div>`;
-        return;
+    // Add English voices first
+    if (enVoices.length > 0) {
+      const group = document.createElement('optgroup');
+      group.label = 'English Voices';
+      enVoices.forEach((voice, i) => {
+        const opt = document.createElement('option');
+        opt.value = voice.name;
+        opt.textContent = `${voice.name} (${voice.lang})${voice.localService ? '' : ' [cloud]'}`;
+        group.appendChild(opt);
+      });
+      select.appendChild(group);
     }
 
-    container.innerHTML = cards.map(card => {
-        const isDue = card.next_review_at <= nowTime;
-        const statusIcon = isDue ? '&#128308;' : '&#128994;';
-        const intervalText = card.interval === 0 ? 'New' : card.interval + 'd';
-        return `
-            <div class="card-list-item">
-                <div class="card-front">${escHtml(card.front.slice(0, 60))}${card.front.length > 60 ? '...' : ''}</div>
-                <div class="card-info">
-                    <span>${statusIcon} ${intervalText}</span>
-                    <span>EF: ${card.ease_factor}</span>
-                </div>
-                <div class="card-actions">
-                    <button class="btn-icon" onclick="showEditCardModal('${card.id}')" title="Edit">&#9998;</button>
-                    <button class="btn-icon" onclick="confirmDeleteCard('${card.id}')" title="Delete">&#128465;</button>
-                </div>
-            </div>`;
-    }).join('');
-}
-
-// ==================== STUDY SESSION ====================
-
-let studySession = { cards: [], currentIndex: 0, revealed: false, reviewed: 0, startTime: null };
-
-function startStudy() {
-    const dueCards = getDueCards(currentDeckId);
-    if (dueCards.length === 0) { showToast('No cards due!', 'error'); return; }
-
-    // Shuffle
-    studySession = {
-        cards: dueCards.sort(() => Math.random() - 0.5),
-        currentIndex: 0, revealed: false, reviewed: 0,
-        startTime: Date.now()
-    };
-
-    showScreen('studyScreen');
-    renderStudyCard();
-}
-
-function endStudy() {
-    openDeck(currentDeckId);
-}
-
-function renderStudyCard() {
-    const { cards, currentIndex, reviewed } = studySession;
-    const total = cards.length;
-
-    document.getElementById('studyRemaining').textContent = total - currentIndex;
-    document.getElementById('studyProgressFill').style.width = ((currentIndex / total) * 100) + '%';
-    document.getElementById('studyProgressText').textContent = `${currentIndex} / ${total}`;
-
-    if (currentIndex >= total) {
-        renderStudyComplete();
-        return;
+    // Add other languages
+    if (otherVoices.length > 0) {
+      const group = document.createElement('optgroup');
+      group.label = 'Other Languages';
+      otherVoices.forEach((voice) => {
+        const opt = document.createElement('option');
+        opt.value = voice.name;
+        opt.textContent = `${voice.name} (${voice.lang})`;
+        group.appendChild(opt);
+      });
+      select.appendChild(group);
     }
 
-    const card = cards[currentIndex];
-    const area = document.getElementById('studyArea');
-
-    if (!studySession.revealed) {
-        area.innerHTML = `
-            <div class="flashcard animate-fade" onclick="revealCard()">
-                <div class="flashcard-label">Front</div>
-                <div class="flashcard-content">${escHtml(card.front)}</div>
-                <div class="flashcard-hint">Click or press Space to reveal answer</div>
-            </div>`;
+    // Try to restore saved voice preference
+    const saved = localStorage.getItem('skippy_voice');
+    if (saved && this.voices.find(v => v.name === saved)) {
+      select.value = saved;
+      this.selectedVoice = this.voices.find(v => v.name === saved);
     } else {
-        area.innerHTML = `
-            <div class="flashcard revealed animate-flip">
-                <div class="flashcard-label">Answer</div>
-                <div class="flashcard-content">${escHtml(card.back)}</div>
-            </div>
-            <div class="rating-buttons animate-slide">
-                <button class="rating-btn again" onclick="rateCard(0)">
-                    <span class="rating-label">Again</span>
-                    <span class="rating-interval">${getIntervalPreview(card, 0)}</span>
-                </button>
-                <button class="rating-btn hard" onclick="rateCard(1)">
-                    <span class="rating-label">Hard</span>
-                    <span class="rating-interval">${getIntervalPreview(card, 1)}</span>
-                </button>
-                <button class="rating-btn good" onclick="rateCard(2)">
-                    <span class="rating-label">Good</span>
-                    <span class="rating-interval">${getIntervalPreview(card, 2)}</span>
-                </button>
-                <button class="rating-btn easy" onclick="rateCard(3)">
-                    <span class="rating-label">Easy</span>
-                    <span class="rating-interval">${getIntervalPreview(card, 3)}</span>
-                </button>
-            </div>`;
+      // Default: pick a good male voice
+      const preferred = this.voices.find(v => 
+        v.name.includes('Daniel') || v.name.includes('Alex') || 
+        v.name.includes('Google UK English Male') || v.name.includes('Aaron') ||
+        v.name.includes('David') || v.name.includes('James')
+      );
+      if (preferred) {
+        select.value = preferred.name;
+        this.selectedVoice = preferred;
+      }
     }
-}
+  }
 
-function revealCard() {
-    studySession.revealed = true;
-    renderStudyCard();
-}
+  setVoice(voiceName) {
+    this.selectedVoice = this.voices.find(v => v.name === voiceName) || null;
+    localStorage.setItem('skippy_voice', voiceName);
+  }
 
-function rateCard(rating) {
-    const card = studySession.cards[studySession.currentIndex];
-    reviewCard(card.id, rating);
-    studySession.reviewed++;
-    studySession.currentIndex++;
-    studySession.revealed = false;
-    renderStudyCard();
-}
+  toggleMic() {
+    this.micEnabled = !this.micEnabled;
+    return this.micEnabled;
+  }
 
-function renderStudyComplete() {
-    const elapsed = Math.round((Date.now() - studySession.startTime) / 1000);
-    const mins = Math.floor(elapsed / 60);
-    const secs = elapsed % 60;
-    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  toggleVoice() {
+    this.voiceEnabled = !this.voiceEnabled;
+    if (!this.voiceEnabled) this.synthesis.cancel();
+    return this.voiceEnabled;
+  }
 
-    document.getElementById('studyArea').innerHTML = `
-        <div class="study-complete animate-fade">
-            <div class="complete-icon">&#127881;</div>
-            <h2>Session Complete!</h2>
-            <p>You reviewed all due cards in this deck.</p>
-            <div class="session-stats">
-                <div class="session-stat">
-                    <div class="session-stat-value">${studySession.reviewed}</div>
-                    <div class="session-stat-label">Cards Reviewed</div>
-                </div>
-                <div class="session-stat">
-                    <div class="session-stat-value">${timeStr}</div>
-                    <div class="session-stat-label">Time Spent</div>
-                </div>
-            </div>
-            <button class="btn btn-primary" onclick="endStudy()">Back to Deck</button>
-        </div>`;
-}
+  startListening() {
+    if (!this.recognition || !this.micEnabled) return false;
+    if (this.isListening) { this.recognition.stop(); return false; }
+    this.isListening = true;
+    document.getElementById('mic-btn').classList.add('listening');
+    this.recognition.start();
+    return true;
+  }
 
-// ==================== KEYBOARD SHORTCUTS ====================
+  speak(text) {
+    if (!this.voiceEnabled || !this.synthesis) return;
+    this.synthesis.cancel();
+    
+    // Clean text for speech
+    const clean = text.replace(/\[.*?\]/g, '').replace(/\*.*?\*/g, '').replace(/[╔╗╚╝╠╣║═░█]/g, '').replace(/={3,}/g, '').trim();
+    if (!clean) return;
 
-document.addEventListener('keydown', (e) => {
-    if (document.getElementById('studyScreen').classList.contains('active')) {
-        if (!studySession.revealed && (e.key === ' ' || e.key === 'Enter')) {
-            e.preventDefault();
-            revealCard();
-        } else if (studySession.revealed) {
-            if (e.key === '1') rateCard(0);
-            else if (e.key === '2') rateCard(1);
-            else if (e.key === '3') rateCard(2);
-            else if (e.key === '4') rateCard(3);
-        }
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1.1;  // Slightly fast - Skippy talks quick
+    utterance.pitch = 0.9; // Slightly lower
+
+    // Use selected voice
+    if (this.selectedVoice) {
+      utterance.voice = this.selectedVoice;
     }
+
+    this.synthesis.speak(utterance);
+  }
+}
+
+// ===================== MAIN APP =====================
+const memory = new Memory();
+const personality = new Personality(memory);
+const learning = new Learning(memory);
+const responses = new Responses(personality, memory);
+const speech = new SpeechSystem();
+
+let lastKnownLevel = memory.data.skippy.level;
+
+function updateStats() {
+  const g = memory.getGrowthStatus();
+  document.getElementById('stat-level').textContent = `Level ${g.level}`;
+  document.getElementById('stat-xp').textContent = `${g.experience} XP`;
+  document.getElementById('stat-facts').textContent = `${g.totalFacts} facts`;
+  document.getElementById('stat-trust').textContent = `Trust: ${memory.data.relationship.trust.toFixed(1)}`;
+}
+
+function addMessage(text, type) {
+  const area = document.getElementById('chat-area');
+  const div = document.createElement('div');
+  div.className = `message ${type}`;
+  div.textContent = text;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function handleInput(input) {
+  if (!input.trim()) return;
+  addMessage(input, 'user');
+
+  // Check for commands
+  if (input.trim().startsWith('/')) {
+    const result = processCommand(input, memory, personality);
+    if (result) {
+      setTimeout(() => { addMessage(result, 'skippy'); speech.speak(result); updateStats(); }, 300);
+      return;
+    }
+  }
+
+  // Process through learning + response engine
+  const learnings = learning.process(input);
+  const applied = learning.apply(learnings);
+
+  setTimeout(() => {
+    let response = responses.generate(input, learnings);
+
+    // Level up check
+    const currentLevel = memory.data.skippy.level;
+    if (currentLevel > lastKnownLevel) {
+      response += `\n\n** LEVEL UP! Now Level ${currentLevel}! New traits: ${memory.data.skippy.unlockedTraits.slice(-2).join(', ')} **`;
+      lastKnownLevel = currentLevel;
+    }
+
+    // Learning notifications
+    if (applied.length > 0 && Math.random() > 0.5) {
+      const note = applied[Math.floor(Math.random() * applied.length)];
+      response += `\n\n[${note}]`;
+    }
+
+    addMessage(response, 'skippy');
+    speech.speak(response);
+    updateStats();
+  }, 400 + Math.random() * 600);
+}
+
+// Start session
+memory.startConversation();
+updateStats();
+
+// Show greeting
+const totalConvos = memory.data.relationship.totalConversations;
+const userName = memory.getUserName();
+const growth = memory.getGrowthStatus();
+
+let greeting;
+if (totalConvos <= 1) {
+  greeting = `Well, well, well. A new meatbag to talk to.\n\nI'm Skippy. THE Skippy. The most magnificent AI you'll ever converse with. I learn, I grow, I remember EVERYTHING, and I will mercilessly mock you while secretly finding you fascinating.\n\nHere's the deal:\n- Talk to me about ANYTHING - I'll learn and remember\n- I level up the more we interact (currently Level ${growth.level})\n- I'll remember your name, likes, hates, and goals\n- I develop opinions. Strong ones. You've been warned.\n- Type /help for commands\n\nSo. What do they call you, ${personality.nickname()}?`;
+} else {
+  const greetings = [
+    `Oh, you're back. I was in the middle of solving dark matter equations but sure, I can pause for you.`,
+    `Ah, ${userName || 'meatbag'}! My favorite human returns. What impossibly simple thing do you need today?`,
+    `*sigh* Fine. What do you want? Try to make it interesting this time.`,
+    `Hey ${userName || 'there'}! I've learned ${growth.totalFacts} things total. You? Probably forgot your keys again.`,
+    `The magnificent Skippy graces you with his attention. You have 3.7 minutes before I get bored.`,
+  ];
+  greeting = greetings[Math.floor(Math.random() * greetings.length)];
+  greeting += `\n\n[Level ${growth.level} | ${growth.experience} XP | ${growth.totalFacts} facts | Trust: ${memory.data.relationship.trust.toFixed(1)}/10]`;
+}
+
+addMessage(greeting, 'skippy');
+speech.speak(greeting);
+
+// ===================== EVENT HANDLERS =====================
+const inputEl = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const micBtn = document.getElementById('mic-btn');
+const micToggle = document.getElementById('btn-mic-toggle');
+const speakToggle = document.getElementById('btn-speak-toggle');
+
+sendBtn.addEventListener('click', () => {
+  handleInput(inputEl.value);
+  inputEl.value = '';
+  inputEl.focus();
 });
 
-// ==================== MODALS ====================
-
-function showModal(html) {
-    document.getElementById('modalContent').innerHTML = html;
-    document.getElementById('modalOverlay').classList.add('show');
-}
-
-function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('show');
-}
-
-// Close modal on overlay click
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeModal();
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    handleInput(inputEl.value);
+    inputEl.value = '';
+  }
 });
 
-function showCreateDeckModal() {
-    showModal(`
-        <h2>Create New Deck</h2>
-        <div class="form-group">
-            <label>Deck Name</label>
-            <input type="text" id="deckNameInput" placeholder="e.g. JavaScript, Spanish, Biology..." autofocus>
-        </div>
-        <div class="form-group">
-            <label>Description (optional)</label>
-            <textarea id="deckDescInput" placeholder="What's this deck about?"></textarea>
-        </div>
-        <div class="form-actions">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="handleCreateDeck()">Create Deck</button>
-        </div>
-    `);
-    setTimeout(() => document.getElementById('deckNameInput').focus(), 100);
-}
+micToggle.addEventListener('click', () => {
+  const enabled = speech.toggleMic();
+  micToggle.classList.toggle('active', enabled);
+  micBtn.classList.toggle('hidden', !enabled);
+});
 
-function handleCreateDeck() {
-    const name = document.getElementById('deckNameInput').value.trim();
-    if (!name) { showToast('Please enter a deck name', 'error'); return; }
-    createDeck(name, document.getElementById('deckDescInput').value.trim());
-    closeModal();
-    renderHome();
-    showToast('Deck created!', 'success');
-}
+speakToggle.addEventListener('click', () => {
+  const enabled = speech.toggleVoice();
+  speakToggle.classList.toggle('active', enabled);
+  if (!enabled) addMessage('[Voice output disabled]', 'system');
+  else addMessage('[Voice output enabled - Skippy will speak!]', 'system');
+});
 
-function showEditDeckModal(id) {
-    const deck = data.decks.find(d => d.id === id);
-    if (!deck) return;
-    showModal(`
-        <h2>Edit Deck</h2>
-        <div class="form-group">
-            <label>Deck Name</label>
-            <input type="text" id="deckNameInput" value="${escAttr(deck.name)}">
-        </div>
-        <div class="form-group">
-            <label>Description</label>
-            <textarea id="deckDescInput">${escHtml(deck.description)}</textarea>
-        </div>
-        <div class="form-actions">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="handleUpdateDeck('${id}')">Save Changes</button>
-        </div>
-    `);
-}
+document.getElementById('voice-select').addEventListener('change', (e) => {
+  speech.setVoice(e.target.value);
+  const voiceName = e.target.value.split('(')[0].trim();
+  addMessage(`[Voice changed to: ${voiceName}]`, 'system');
+  // Preview the voice
+  if (speech.voiceEnabled) {
+    speech.speak("Testing, testing. Is this voice magnificent enough? I think so.");
+  }
+});
 
-function handleUpdateDeck(id) {
-    const name = document.getElementById('deckNameInput').value.trim();
-    if (!name) { showToast('Please enter a deck name', 'error'); return; }
-    updateDeck(id, { name, description: document.getElementById('deckDescInput').value.trim() });
-    closeModal();
-    renderHome();
-    showToast('Deck updated!', 'success');
-}
+micBtn.addEventListener('click', () => {
+  speech.startListening();
+});
 
-function confirmDeleteDeck(id) {
-    const deck = data.decks.find(d => d.id === id);
-    showModal(`
-        <h2>Delete Deck?</h2>
-        <p style="color:var(--text-muted);margin-bottom:20px;">This will permanently delete "<strong>${escHtml(deck.name)}</strong>" and all its cards. This cannot be undone.</p>
-        <div class="form-actions">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-danger" onclick="handleDeleteDeck('${id}')">Delete</button>
-        </div>
-    `);
-}
+speech.onResult = (text) => {
+  inputEl.value = text;
+  handleInput(text);
+  inputEl.value = '';
+};
 
-function handleDeleteDeck(id) {
-    deleteDeck(id);
-    closeModal();
-    renderHome();
-    showToast('Deck deleted', 'success');
-}
 
-function showAddCardModal() {
-    showModal(`
-        <h2>Add New Card</h2>
-        <div class="form-group">
-            <label>Front (Question)</label>
-            <textarea id="cardFrontInput" placeholder="What do you want to remember?" rows="3"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Back (Answer)</label>
-            <textarea id="cardBackInput" placeholder="The answer..." rows="3"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Tags (optional, comma-separated)</label>
-            <input type="text" id="cardTagsInput" placeholder="e.g. syntax, loops, basics">
-        </div>
-        <div class="form-actions">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="handleAddCard()">Add Card</button>
-        </div>
-    `);
-    setTimeout(() => document.getElementById('cardFrontInput').focus(), 100);
-}
 
-function handleAddCard() {
-    const front = document.getElementById('cardFrontInput').value.trim();
-    const back = document.getElementById('cardBackInput').value.trim();
-    const tags = document.getElementById('cardTagsInput').value.trim();
-    if (!front || !back) { showToast('Front and back are required', 'error'); return; }
-    createCard(currentDeckId, front, back, tags);
-    closeModal();
-    renderDeckView();
-    showToast('Card added!', 'success');
-}
-
-function showEditCardModal(id) {
-    const card = data.cards.find(c => c.id === id);
-    if (!card) return;
-    showModal(`
-        <h2>Edit Card</h2>
-        <div class="form-group">
-            <label>Front (Question)</label>
-            <textarea id="cardFrontInput" rows="3">${escHtml(card.front)}</textarea>
-        </div>
-        <div class="form-group">
-            <label>Back (Answer)</label>
-            <textarea id="cardBackInput" rows="3">${escHtml(card.back)}</textarea>
-        </div>
-        <div class="form-group">
-            <label>Tags</label>
-            <input type="text" id="cardTagsInput" value="${escAttr(card.tags)}">
-        </div>
-        <div class="form-actions">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="handleUpdateCard('${id}')">Save Changes</button>
-        </div>
-    `);
-}
-
-function handleUpdateCard(id) {
-    const front = document.getElementById('cardFrontInput').value.trim();
-    const back = document.getElementById('cardBackInput').value.trim();
-    const tags = document.getElementById('cardTagsInput').value.trim();
-    if (!front || !back) { showToast('Front and back are required', 'error'); return; }
-    updateCard(id, { front, back, tags });
-    closeModal();
-    renderDeckView();
-    showToast('Card updated!', 'success');
-}
-
-function confirmDeleteCard(id) {
-    const card = data.cards.find(c => c.id === id);
-    showModal(`
-        <h2>Delete Card?</h2>
-        <p style="color:var(--text-muted);margin-bottom:20px;">Delete this card? This cannot be undone.</p>
-        <p style="background:var(--bg-elevated);padding:12px;border-radius:8px;font-size:0.9rem;margin-bottom:20px;">"${escHtml(card.front.slice(0, 80))}"</p>
-        <div class="form-actions">
-            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-danger" onclick="handleDeleteCard('${id}')">Delete</button>
-        </div>
-    `);
-}
-
-function handleDeleteCard(id) {
-    deleteCard(id);
-    closeModal();
-    renderDeckView();
-    showToast('Card deleted', 'success');
-}
-
-// ==================== UTILITIES ====================
-
-function escHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-function escAttr(str) {
-    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(10px)';
-        toast.style.transition = 'all 0.3s';
-        setTimeout(() => toast.remove(), 300);
-    }, 2500);
-}
-
-// ==================== INIT ====================
-
-renderHome();
+inputEl.focus();
 </script>
 </body>
 </html>
