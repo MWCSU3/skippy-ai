@@ -701,6 +701,33 @@ class GeminiSearch {
   }
 
   async fallbackSearch(query) {
+    const q = query.toLowerCase();
+    
+    // Handle TIME queries directly
+    if (/\b(what time|current time|time in|time is it)\b/.test(q)) {
+      const cityMatch = q.match(/(?:time in|time at|time is it in)\s+(.+?)(?:\?|$)/i);
+      const city = cityMatch ? cityMatch[1].trim() : null;
+      const tzMap = {'nyc':'America/New_York','new york':'America/New_York','ny':'America/New_York','la':'America/Los_Angeles','los angeles':'America/Los_Angeles','chicago':'America/Chicago','london':'Europe/London','paris':'Europe/Paris','tokyo':'Asia/Tokyo','sydney':'Australia/Sydney','berlin':'Europe/Berlin','dubai':'Asia/Dubai','singapore':'Asia/Singapore','toronto':'America/Toronto','denver':'America/Denver','seattle':'America/Los_Angeles','sf':'America/Los_Angeles','miami':'America/New_York','boston':'America/New_York','atlanta':'America/New_York','dallas':'America/Chicago','houston':'America/Chicago'};
+      let tz = 'America/New_York';
+      if (city) { const cl = city.toLowerCase(); tz = tzMap[cl] || Object.entries(tzMap).find(([k])=>cl.includes(k)||k.includes(cl))?.[1] || tz; }
+      try {
+        const r = await fetch(`https://worldtimeapi.org/api/timezone/${tz}`);
+        if (r.ok) { const d = await r.json(); const dt = new Date(d.datetime); const ts = dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true}); const ds = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); return `The current time in ${city||'New York'} is ${ts} on ${ds} (${d.abbreviation}).`; }
+      } catch(e){}
+      const now = new Date(); return `It's ${now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})} your local time.`;
+    }
+    
+    // Handle WEATHER queries
+    if (/\b(weather|temperature|forecast)\b/.test(q)) {
+      const cm = q.match(/(?:weather|temperature|forecast)\s+(?:in|at|for)\s+(.+?)(?:\?|$)/i) || q.match(/(?:in|at|for)\s+(.+?)\s+(?:weather|temperature|forecast)/i);
+      const city = cm ? cm[1].trim() : 'New York';
+      try {
+        const r = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`);
+        if (r.ok) { const d = await r.json(); const c = d.current_condition?.[0]; if(c) return `Weather in ${city}: ${c.weatherDesc?.[0]?.value||'Unknown'}, ${c.temp_F}°F (${c.temp_C}°C). Humidity: ${c.humidity}%. Wind: ${c.windspeedMiles} mph.`; }
+      } catch(e){}
+    }
+
+    // General search via DuckDuckGo + Wikipedia
     try {
       const url=`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
       const r=await fetch(url); if(!r.ok) return null;
@@ -719,16 +746,32 @@ class GeminiSearch {
   async search(question) {
     const ck=question.toLowerCase().trim();
     if(this.cache[ck]) return this.cache[ck];
-    // Try Gemini with grounded search
-    let result = await this.ask(question);
-    if(result){this.cache[ck]=result; return result;}
-    // Fallback: web search + feed to Gemini
+    
+    const hasKey = !!localStorage.getItem(GEMINI_KEY_STORAGE);
+    
+    // Try Gemini with grounded search (if we have a key)
+    if (hasKey) {
+      let result = await this.ask(question);
+      if(result){this.cache[ck]=result; return result;}
+    }
+    
+    // Fallback: web search
     const ctx = await this.fallbackSearch(question);
     if(ctx){
-      result = await this.ask(question, ctx);
-      if(result){this.cache[ck]=result; return result;}
-      // Raw fallback with Skippy wrapper
-      result = `*sigh* Fine. Here's what I found, you filthy monkey:\n\n${ctx}\n\nYou're welcome. Not that you deserve it.`;
+      // If we have Gemini, let it interpret the results in Skippy voice
+      if (hasKey) {
+        const result = await this.ask(question, ctx);
+        if(result){this.cache[ck]=result; return result;}
+      }
+      // Otherwise wrap raw results in Skippy voice
+      const intros = [
+        `*scans the internet in 0.003 nanoseconds* Pfft, easy:\n\n`,
+        `Oh please. I knew this. But fine, here:\n\n`,
+        `Duh. Here, dumdum:\n\n`,
+        `*sigh* Fine, I'll do your thinking for you:\n\n`,
+      ];
+      const intro = intros[Math.floor(Math.random()*intros.length)];
+      const result = intro + ctx + `\n\nYou're welcome, ${NICKNAMES[Math.floor(Math.random()*NICKNAMES.length)]}.`;
       this.cache[ck]=result; return result;
     }
     return null;
@@ -797,17 +840,19 @@ function showBanter() {
 }
 
 function shouldAskAI(input, learnings) {
-  // Always use AI if we have a key and it's a question
-  if (!localStorage.getItem(GEMINI_KEY_STORAGE)) return false;
+  // For questions, ALWAYS try to get a real answer (Gemini or fallback)
   if (learnings.isQuestion) {
     const q = input.toLowerCase();
+    // Don't search for personal/Skippy questions
     if (/\b(you|your|skippy|yourself)\b/.test(q)) return false;
     if (/\b(my name|my goal|my project|remember|memory)\b/.test(q)) return false;
     return true;
   }
-  // Also use AI for general chat to get better responses
-  if (input.length > 15 && !learnings.name && !learnings.isTeaching && !learnings.isCorrection) {
-    return true;
+  // For general chat, use AI only if we have a key
+  if (localStorage.getItem(GEMINI_KEY_STORAGE)) {
+    if (input.length > 15 && !learnings.name && !learnings.isTeaching && !learnings.isCorrection) {
+      return true;
+    }
   }
   return false;
 }
