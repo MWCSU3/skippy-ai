@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skippy - Spaced Repetition Flashcards</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-elevated: #334155;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #475569;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            --again: #ef4444;
+            --hard: #f97316;
+            --good: #10b981;
+            --easy: #06b6d4;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes flipIn { from { transform: rotateX(-90deg); opacity: 0; } to { transform: rotateX(0); opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+        .animate-fade { animation: fadeIn 0.3s ease-out; }
+        .animate-flip { animation: flipIn 0.4s ease-out; }
+        .animate-slide { animation: slideUp 0.4s ease-out; }
+
+        /* Layout */
+        .app { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .screen { display: none; } .screen.active { display: block; }
+
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg-card); border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow); }
+        .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--info)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .header-stats { display: flex; gap: 14px; }
+        .stat { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-muted); }
+        .stat .num { font-weight: 700; color: var(--text); }
+
+        /* Buttons */
+        .btn { padding: 10px 18px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg-elevated); color: var(--text); }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+        .btn-icon { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 6px; font-size: 1.1rem; }
+        .btn-icon:hover { background: var(--bg-elevated); color: var(--text); }
+        .btn-back { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; padding: 8px; border-radius: 8px; }
+        .btn-back:hover { background: var(--bg-elevated); color: var(--text); }
+
+        /* Cards (UI cards, not flashcards) */
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); margin-bottom: 16px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .card-title { font-size: 1.1rem; font-weight: 700; }
+
+        /* Deck List */
+        .deck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .deck-item { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .deck-item:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(99,102,241,0.15); }
+        .deck-item h3 { font-size: 1.1rem; margin-bottom: 6px; }
+        .deck-item p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; }
+        .deck-meta { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text-muted); }
+        .deck-meta span { display: flex; align-items: center; gap: 4px; }
+        .deck-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
+        .due-badge { background: var(--primary); color: white; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+        .due-badge.none { background: var(--bg-elevated); color: var(--text-muted); }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+        .form-group input:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+        .form-group textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+        .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: var(--bg-card); border-radius: 16px; padding: 28px; width: 100%; max-width: 500px; animation: slideUp 0.3s ease-out; }
+        .modal h2 { font-size: 1.3rem; margin-bottom: 20px; }
+
+        /* Study View */
+        .study-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .study-progress-bar { flex: 1; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
+        .study-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--info)); border-radius: 4px; transition: width 0.4s ease; }
+        .study-progress-text { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+
+        .flashcard { background: var(--bg-card); border: 2px solid var(--border); border-radius: 16px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40px; margin-bottom: 24px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .flashcard:hover { border-color: var(--primary-light); }
+        .flashcard-label { position: absolute; top: 16px; left: 16px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); background: var(--bg-elevated); padding: 4px 10px; border-radius: 6px; }
+        .flashcard-content { font-size: 1.3rem; line-height: 1.6; max-width: 600px; }
+        .flashcard-hint { position: absolute; bottom: 16px; font-size: 0.8rem; color: var(--text-muted); }
+        .flashcard.revealed { border-color: var(--success); }
+        .flashcard.revealed .flashcard-label { background: rgba(16,185,129,0.15); color: var(--success); }
+
+        .rating-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .rating-btn { padding: 14px 12px; border: 2px solid transparent; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s; background: var(--bg-card); }
+        .rating-btn:hover { transform: translateY(-2px); }
+        .rating-btn .rating-label { font-size: 0.9rem; font-weight: 700; display: block; margin-bottom: 4px; }
+        .rating-btn .rating-interval { font-size: 0.75rem; color: var(--text-muted); }
+        .rating-btn.again { border-color: var(--again); color: var(--again); } .rating-btn.again:hover { background: rgba(239,68,68,0.1); }
+        .rating-btn.hard { border-color: var(--hard); color: var(--hard); } .rating-btn.hard:hover { background: rgba(249,115,22,0.1); }
+        .rating-btn.good { border-color: var(--good); color: var(--good); } .rating-btn.good:hover { background: rgba(16,185,129,0.1); }
+        .rating-btn.easy { border-color: var(--easy); color: var(--easy); } .rating-btn.easy:hover { background: rgba(6,182,212,0.1); }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg-card); border-radius: var(--radius); padding: 18px; text-align: center; }
+        .stat-card .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+        .stat-card .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+        .stat-card.success .stat-value { color: var(--success); }
+        .stat-card.warning .stat-value { color: var(--warning); }
+        .stat-card.info .stat-value { color: var(--info); }
+
+        /* Card List (in deck view) */
+        .card-list-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg-elevated); border-radius: 8px; margin-bottom: 8px; }
+        .card-list-item .card-front { font-weight: 600; font-size: 0.9rem; flex: 1; }
+        .card-list-item .card-info { display: flex; gap: 12px; align-items: center; font-size: 0.8rem; color: var(--text-muted); }
+        .card-list-item .card-actions { display: flex; gap: 4px; margin-left: 12px; }
+
+        /* Empty states */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 1.2rem; color: var(--text); margin-bottom: 8px; }
+        .empty-state p { margin-bottom: 20px; font-size: 0.9rem; }
+
+        /* Study complete */
+        .study-complete { text-align: center; padding: 60px 20px; }
+        .study-complete .complete-icon { font-size: 4rem; margin-bottom: 16px; }
+        .study-complete h2 { font-size: 1.8rem; margin-bottom: 8px; }
+        .study-complete p { color: var(--text-muted); margin-bottom: 24px; }
+        .study-complete .session-stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 30px; }
+        .study-complete .session-stat { text-align: center; }
+        .study-complete .session-stat-value { font-size: 2rem; font-weight: 800; color: var(--primary); }
+        .study-complete .session-stat-label { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 12px 18px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border); box-shadow: 0 8px 25px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; font-size: 0.9rem; }
+        .toast.success { border-color: var(--success); }
+        .toast.error { border-color: var(--danger); }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .deck-grid { grid-template-columns: 1fr; }
+            .rating-buttons { grid-template-columns: repeat(2, 1fr); }
+            .flashcard { min-height: 220px; padding: 30px 20px; }
+            .flashcard-content { font-size: 1.1rem; }
+            .header { flex-direction: column; gap: 12px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalContent"></div>
+    </div>
+
+    <!-- ==================== HOME SCREEN ==================== -->
+    <div class="screen active" id="homeScreen">
+        <div class="header">
+            <div class="logo">Skippy</div>
+            <div class="header-stats">
+                <div class="stat"><span>Due today:</span> <span class="num" id="totalDue">0</span></div>
+                <div class="stat"><span>Reviews:</span> <span class="num" id="totalReviews">0</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Your Decks</div>
+                <button class="btn btn-primary btn-sm" onclick="showCreateDeckModal()">+ New Deck</button>
+            </div>
+            <div id="deckList"></div>
+        </div>
+
+        <div class="stats-grid" id="homeStats"></div>
+    </div>
+
+    <!-- ==================== DECK VIEW SCREEN ==================== -->
+    <div class="screen" id="deckScreen">
+        <div class="header">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="btn-back" onclick="goHome()">&larr;</button>
+                <div class="logo" id="deckViewName">Deck Name</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-success btn-sm" id="studyBtn" onclick="startStudy()">Study Now</button>
+                <button class="btn btn-primary btn-sm" onclick="showAddCardModal()">+ Add Card</button>
+            </div>
+        </div>
+
+        <div class="stats-grid" id="deckStats"></div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Cards <span id="cardCount" style="color:var(--text-muted);font-weight:400;font-size:0.9rem;"></span></div>
+            </div>
+            <div id="cardList"></div>
+        </div>
+    </div>
+
+    <!-- ==================== STUDY SCREEN ==================== -->
+    <div class="screen" id="studyScreen">
+        <div class="header">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="btn-back" onclick="endStudy()">&larr;</button>
+                <div class="logo">Study Session</div>
+            </div>
+            <div class="header-stats">
+                <div class="stat"><span>Remaining:</span> <span class="num" id="studyRemaining">0</span></div>
+            </div>
+        </div>
+
+        <div class="study-progress">
+            <div class="study-progress-bar"><div class="study-progress-fill" id="studyProgressFill"></div></div>
+            <div class="study-progress-text" id="studyProgressText">0 / 0</div>
+        </div>
+
+        <div id="studyArea"></div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// SKIPPY - Browser-based Spaced Repetition App
+// Implements SM-2 algorithm with localStorage persistence
+// ============================================================
+
+// ==================== DATA LAYER ====================
+
+const DB_KEY = 'skippy_data';
+
+function generateId() {
+    return crypto.randomUUID ? crypto.randomUUID() : 
+        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+}
+
+function now() { return new Date().toISOString(); }
+
+function loadData() {
+    try {
+        const raw = localStorage.getItem(DB_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch (e) { console.error('Failed to load data', e); }
+    return { decks: [], cards: [], reviews: [] };
+}
+
+function saveData(data) {
+    try { localStorage.setItem(DB_KEY, JSON.stringify(data)); }
+    catch (e) { console.error('Failed to save', e); }
+}
+
+let data = loadData();
+
+// ==================== SM-2 ALGORITHM ====================
+
+function calculateSM2(card, rating) {
+    let { ease_factor, interval, repetitions } = card;
+    let newEase = ease_factor;
+    let newInterval, newReps;
+
+    if (rating === 0) { // AGAIN
+        newReps = 0;
+        newInterval = 1;
+        newEase = Math.max(1.3, ease_factor - 0.2);
+    } else if (rating === 1) { // HARD
+        newReps = repetitions + 1;
+        if (repetitions === 0) newInterval = 1;
+        else if (repetitions === 1) newInterval = 4;
+        else newInterval = Math.round(interval * 1.2);
+        newEase = Math.max(1.3, ease_factor - 0.15);
+    } else if (rating === 2) { // GOOD
+        newReps = repetitions + 1;
+        if (repetitions === 0) newInterval = 1;
+        else if (repetitions === 1) newInterval = 6;
+        else newInterval = Math.round(interval * ease_factor);
+        newEase = ease_factor;
+    } else { // EASY
+        newReps = repetitions + 1;
+        if (repetitions === 0) newInterval = 4;
+        else if (repetitions === 1) newInterval = 10;
+        else newInterval = Math.round(interval * ease_factor * 1.3);
+        newEase = ease_factor + 0.15;
+    }
+
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + newInterval);
+
+    return {
+        ease_factor: Math.round(newEase * 100) / 100,
+        interval: newInterval,
+        repetitions: newReps,
+        next_review_at: nextReview.toISOString()
+    };
+}
+
+function getIntervalPreview(card, rating) {
+    const result = calculateSM2(card, rating);
+    if (result.interval === 0) return 'now';
+    if (result.interval === 1) return '1d';
+    if (result.interval < 30) return result.interval + 'd';
+    if (result.interval < 365) return Math.round(result.interval / 30) + 'mo';
+    return Math.round(result.interval / 365) + 'y';
+}
+
+// ==================== DECK OPERATIONS ====================
+
+function createDeck(name, description = '') {
+    const deck = { id: generateId(), name, description, created_at: now(), updated_at: now() };
+    data.decks.push(deck);
+    saveData(data);
+    return deck;
+}
+
+function updateDeck(id, updates) {
+    const deck = data.decks.find(d => d.id === id);
+    if (!deck) return null;
+    Object.assign(deck, updates, { updated_at: now() });
+    saveData(data);
+    return deck;
+}
+
+function deleteDeck(id) {
+    data.cards = data.cards.filter(c => c.deck_id !== id);
+    data.reviews = data.reviews.filter(r => {
+        const card = data.cards.find(c => c.id === r.card_id);
+        return card; // remove orphaned reviews
+    });
+    data.decks = data.decks.filter(d => d.id !== id);
+    saveData(data);
+}
+
+function getDeckCardCount(deckId) {
+    return data.cards.filter(c => c.deck_id === deckId).length;
+}
+
+function getDeckDueCount(deckId) {
+    const nowTime = new Date().toISOString();
+    return data.cards.filter(c => c.deck_id === deckId && c.next_review_at <= nowTime).length;
+}
+
+// ==================== CARD OPERATIONS ====================
+
+function createCard(deckId, front, back, tags = '') {
+    const card = {
+        id: generateId(), deck_id: deckId, front, back, tags,
+        created_at: now(), updated_at: now(),
+        ease_factor: 2.5, interval: 0, repetitions: 0,
+        next_review_at: now()
+    };
+    data.cards.push(card);
+    saveData(data);
+    return card;
+}
+
+function updateCard(id, updates) {
+    const card = data.cards.find(c => c.id === id);
+    if (!card) return null;
+    Object.assign(card, updates, { updated_at: now() });
+    saveData(data);
+    return card;
+}
+
+function deleteCard(id) {
+    data.reviews = data.reviews.filter(r => r.card_id !== id);
+    data.cards = data.cards.filter(c => c.id !== id);
+    saveData(data);
+}
+
+function getDueCards(deckId) {
+    const nowTime = new Date().toISOString();
+    return data.cards.filter(c => c.deck_id === deckId && c.next_review_at <= nowTime);
+}
+
+// ==================== REVIEW OPERATIONS ====================
+
+function reviewCard(cardId, rating) {
+    const card = data.cards.find(c => c.id === cardId);
+    if (!card) return null;
+
+    const result = calculateSM2(card, rating);
+    Object.assign(card, result, { updated_at: now() });
+
+    data.reviews.push({
+        id: generateId(), card_id: cardId, rating,
+        reviewed_at: now(), time_spent_ms: 0,
+        ease_factor_after: result.ease_factor,
+        interval_after: result.interval,
+        repetitions_after: result.repetitions
+    });
+
+    saveData(data);
+    return card;
+}
+
+function getTodayReviewCount() {
+    const today = new Date().toISOString().split('T')[0];
+    return data.reviews.filter(r => r.reviewed_at.startsWith(today)).length;
+}
+
+function getTotalDueCount() {
+    const nowTime = new Date().toISOString();
+    return data.cards.filter(c => c.next_review_at <= nowTime).length;
+}
+
+// ==================== UI RENDERING ====================
+
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+    showScreen('homeScreen');
+    renderHome();
+}
+
+function renderHome() {
+    // Stats
+    document.getElementById('totalDue').textContent = getTotalDueCount();
+    document.getElementById('totalReviews').textContent = getTodayReviewCount();
+
+    // Deck list
+    const container = document.getElementById('deckList');
+    if (data.decks.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📚</div>
+                <h3>No decks yet</h3>
+                <p>Create your first deck to start learning with spaced repetition.</p>
+                <button class="btn btn-primary" onclick="showCreateDeckModal()">+ Create Deck</button>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = '<div class="deck-grid">' + data.decks.map(deck => {
+        const cardCount = getDeckCardCount(deck.id);
+        const dueCount = getDeckDueCount(deck.id);
+        return `
+            <div class="deck-item" onclick="openDeck('${deck.id}')">
+                <div class="deck-actions">
+                    <button class="btn-icon" onclick="event.stopPropagation();showEditDeckModal('${deck.id}')" title="Edit">&#9998;</button>
+                    <button class="btn-icon" onclick="event.stopPropagation();confirmDeleteDeck('${deck.id}')" title="Delete">&#128465;</button>
+                </div>
+                <h3>${escHtml(deck.name)}</h3>
+                <p>${escHtml(deck.description || 'No description')}</p>
+                <div class="deck-meta">
+                    <span>&#128196; ${cardCount} card${cardCount !== 1 ? 's' : ''}</span>
+                    <span class="due-badge ${dueCount === 0 ? 'none' : ''}">${dueCount} due</span>
+                </div>
+            </div>`;
+    }).join('') + '</div>';
+
+    // Home stats
+    const statsEl = document.getElementById('homeStats');
+    const totalCards = data.cards.length;
+    const totalReviews = data.reviews.length;
+    const avgEase = totalCards > 0 ? (data.cards.reduce((s, c) => s + c.ease_factor, 0) / totalCards).toFixed(2) : '0';
+    statsEl.innerHTML = `
+        <div class="stat-card"><div class="stat-value">${data.decks.length}</div><div class="stat-label">Decks</div></div>
+        <div class="stat-card info"><div class="stat-value">${totalCards}</div><div class="stat-label">Total Cards</div></div>
+        <div class="stat-card success"><div class="stat-value">${totalReviews}</div><div class="stat-label">All-time Reviews</div></div>
+        <div class="stat-card warning"><div class="stat-value">${avgEase}</div><div class="stat-label">Avg Ease</div></div>
+    `;
+}
+
+// ==================== DECK VIEW ====================
+
+let currentDeckId = null;
+
+function openDeck(id) {
+    currentDeckId = id;
+    const deck = data.decks.find(d => d.id === id);
+    if (!deck) return;
+
+    document.getElementById('deckViewName').textContent = deck.name;
+    showScreen('deckScreen');
+    renderDeckView();
+}
+
+function renderDeckView() {
+    const deck = data.decks.find(d => d.id === currentDeckId);
+    if (!deck) return goHome();
+
+    const cards = data.cards.filter(c => c.deck_id === currentDeckId);
+    const dueCount = getDeckDueCount(currentDeckId);
+    const nowTime = new Date().toISOString();
+
+    // Stats
+    document.getElementById('deckStats').innerHTML = `
+        <div class="stat-card"><div class="stat-value">${cards.length}</div><div class="stat-label">Cards</div></div>
+        <div class="stat-card success"><div class="stat-value">${dueCount}</div><div class="stat-label">Due Now</div></div>
+        <div class="stat-card info"><div class="stat-value">${cards.filter(c => c.repetitions > 0).length}</div><div class="stat-label">Reviewed</div></div>
+        <div class="stat-card warning"><div class="stat-value">${cards.filter(c => c.interval >= 21).length}</div><div class="stat-label">Mature</div></div>
+    `;
+
+    // Study button state
+    const studyBtn = document.getElementById('studyBtn');
+    studyBtn.disabled = dueCount === 0;
+    studyBtn.textContent = dueCount > 0 ? `Study (${dueCount} due)` : 'All caught up!';
+
+    // Card count
+    document.getElementById('cardCount').textContent = `(${cards.length})`;
+
+    // Card list
+    const container = document.getElementById('cardList');
+    if (cards.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">&#9999;</div>
+                <h3>No cards yet</h3>
+                <p>Add flashcards to start studying.</p>
+                <button class="btn btn-primary" onclick="showAddCardModal()">+ Add Card</button>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = cards.map(card => {
+        const isDue = card.next_review_at <= nowTime;
+        const statusIcon = isDue ? '&#128308;' : '&#128994;';
+        const intervalText = card.interval === 0 ? 'New' : card.interval + 'd';
+        return `
+            <div class="card-list-item">
+                <div class="card-front">${escHtml(card.front.slice(0, 60))}${card.front.length > 60 ? '...' : ''}</div>
+                <div class="card-info">
+                    <span>${statusIcon} ${intervalText}</span>
+                    <span>EF: ${card.ease_factor}</span>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-icon" onclick="showEditCardModal('${card.id}')" title="Edit">&#9998;</button>
+                    <button class="btn-icon" onclick="confirmDeleteCard('${card.id}')" title="Delete">&#128465;</button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+// ==================== STUDY SESSION ====================
+
+let studySession = { cards: [], currentIndex: 0, revealed: false, reviewed: 0, startTime: null };
+
+function startStudy() {
+    const dueCards = getDueCards(currentDeckId);
+    if (dueCards.length === 0) { showToast('No cards due!', 'error'); return; }
+
+    // Shuffle
+    studySession = {
+        cards: dueCards.sort(() => Math.random() - 0.5),
+        currentIndex: 0, revealed: false, reviewed: 0,
+        startTime: Date.now()
+    };
+
+    showScreen('studyScreen');
+    renderStudyCard();
+}
+
+function endStudy() {
+    openDeck(currentDeckId);
+}
+
+function renderStudyCard() {
+    const { cards, currentIndex, reviewed } = studySession;
+    const total = cards.length;
+
+    document.getElementById('studyRemaining').textContent = total - currentIndex;
+    document.getElementById('studyProgressFill').style.width = ((currentIndex / total) * 100) + '%';
+    document.getElementById('studyProgressText').textContent = `${currentIndex} / ${total}`;
+
+    if (currentIndex >= total) {
+        renderStudyComplete();
+        return;
+    }
+
+    const card = cards[currentIndex];
+    const area = document.getElementById('studyArea');
+
+    if (!studySession.revealed) {
+        area.innerHTML = `
+            <div class="flashcard animate-fade" onclick="revealCard()">
+                <div class="flashcard-label">Front</div>
+                <div class="flashcard-content">${escHtml(card.front)}</div>
+                <div class="flashcard-hint">Click or press Space to reveal answer</div>
+            </div>`;
+    } else {
+        area.innerHTML = `
+            <div class="flashcard revealed animate-flip">
+                <div class="flashcard-label">Answer</div>
+                <div class="flashcard-content">${escHtml(card.back)}</div>
+            </div>
+            <div class="rating-buttons animate-slide">
+                <button class="rating-btn again" onclick="rateCard(0)">
+                    <span class="rating-label">Again</span>
+                    <span class="rating-interval">${getIntervalPreview(card, 0)}</span>
+                </button>
+                <button class="rating-btn hard" onclick="rateCard(1)">
+                    <span class="rating-label">Hard</span>
+                    <span class="rating-interval">${getIntervalPreview(card, 1)}</span>
+                </button>
+                <button class="rating-btn good" onclick="rateCard(2)">
+                    <span class="rating-label">Good</span>
+                    <span class="rating-interval">${getIntervalPreview(card, 2)}</span>
+                </button>
+                <button class="rating-btn easy" onclick="rateCard(3)">
+                    <span class="rating-label">Easy</span>
+                    <span class="rating-interval">${getIntervalPreview(card, 3)}</span>
+                </button>
+            </div>`;
+    }
+}
+
+function revealCard() {
+    studySession.revealed = true;
+    renderStudyCard();
+}
+
+function rateCard(rating) {
+    const card = studySession.cards[studySession.currentIndex];
+    reviewCard(card.id, rating);
+    studySession.reviewed++;
+    studySession.currentIndex++;
+    studySession.revealed = false;
+    renderStudyCard();
+}
+
+function renderStudyComplete() {
+    const elapsed = Math.round((Date.now() - studySession.startTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+    document.getElementById('studyArea').innerHTML = `
+        <div class="study-complete animate-fade">
+            <div class="complete-icon">&#127881;</div>
+            <h2>Session Complete!</h2>
+            <p>You reviewed all due cards in this deck.</p>
+            <div class="session-stats">
+                <div class="session-stat">
+                    <div class="session-stat-value">${studySession.reviewed}</div>
+                    <div class="session-stat-label">Cards Reviewed</div>
+                </div>
+                <div class="session-stat">
+                    <div class="session-stat-value">${timeStr}</div>
+                    <div class="session-stat-label">Time Spent</div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="endStudy()">Back to Deck</button>
+        </div>`;
+}
+
+// ==================== KEYBOARD SHORTCUTS ====================
+
+document.addEventListener('keydown', (e) => {
+    if (document.getElementById('studyScreen').classList.contains('active')) {
+        if (!studySession.revealed && (e.key === ' ' || e.key === 'Enter')) {
+            e.preventDefault();
+            revealCard();
+        } else if (studySession.revealed) {
+            if (e.key === '1') rateCard(0);
+            else if (e.key === '2') rateCard(1);
+            else if (e.key === '3') rateCard(2);
+            else if (e.key === '4') rateCard(3);
+        }
+    }
+});
+
+// ==================== MODALS ====================
+
+function showModal(html) {
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// Close modal on overlay click
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+});
+
+function showCreateDeckModal() {
+    showModal(`
+        <h2>Create New Deck</h2>
+        <div class="form-group">
+            <label>Deck Name</label>
+            <input type="text" id="deckNameInput" placeholder="e.g. JavaScript, Spanish, Biology..." autofocus>
+        </div>
+        <div class="form-group">
+            <label>Description (optional)</label>
+            <textarea id="deckDescInput" placeholder="What's this deck about?"></textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="handleCreateDeck()">Create Deck</button>
+        </div>
+    `);
+    setTimeout(() => document.getElementById('deckNameInput').focus(), 100);
+}
+
+function handleCreateDeck() {
+    const name = document.getElementById('deckNameInput').value.trim();
+    if (!name) { showToast('Please enter a deck name', 'error'); return; }
+    createDeck(name, document.getElementById('deckDescInput').value.trim());
+    closeModal();
+    renderHome();
+    showToast('Deck created!', 'success');
+}
+
+function showEditDeckModal(id) {
+    const deck = data.decks.find(d => d.id === id);
+    if (!deck) return;
+    showModal(`
+        <h2>Edit Deck</h2>
+        <div class="form-group">
+            <label>Deck Name</label>
+            <input type="text" id="deckNameInput" value="${escAttr(deck.name)}">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <textarea id="deckDescInput">${escHtml(deck.description)}</textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="handleUpdateDeck('${id}')">Save Changes</button>
+        </div>
+    `);
+}
+
+function handleUpdateDeck(id) {
+    const name = document.getElementById('deckNameInput').value.trim();
+    if (!name) { showToast('Please enter a deck name', 'error'); return; }
+    updateDeck(id, { name, description: document.getElementById('deckDescInput').value.trim() });
+    closeModal();
+    renderHome();
+    showToast('Deck updated!', 'success');
+}
+
+function confirmDeleteDeck(id) {
+    const deck = data.decks.find(d => d.id === id);
+    showModal(`
+        <h2>Delete Deck?</h2>
+        <p style="color:var(--text-muted);margin-bottom:20px;">This will permanently delete "<strong>${escHtml(deck.name)}</strong>" and all its cards. This cannot be undone.</p>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="handleDeleteDeck('${id}')">Delete</button>
+        </div>
+    `);
+}
+
+function handleDeleteDeck(id) {
+    deleteDeck(id);
+    closeModal();
+    renderHome();
+    showToast('Deck deleted', 'success');
+}
+
+function showAddCardModal() {
+    showModal(`
+        <h2>Add New Card</h2>
+        <div class="form-group">
+            <label>Front (Question)</label>
+            <textarea id="cardFrontInput" placeholder="What do you want to remember?" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Back (Answer)</label>
+            <textarea id="cardBackInput" placeholder="The answer..." rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Tags (optional, comma-separated)</label>
+            <input type="text" id="cardTagsInput" placeholder="e.g. syntax, loops, basics">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="handleAddCard()">Add Card</button>
+        </div>
+    `);
+    setTimeout(() => document.getElementById('cardFrontInput').focus(), 100);
+}
+
+function handleAddCard() {
+    const front = document.getElementById('cardFrontInput').value.trim();
+    const back = document.getElementById('cardBackInput').value.trim();
+    const tags = document.getElementById('cardTagsInput').value.trim();
+    if (!front || !back) { showToast('Front and back are required', 'error'); return; }
+    createCard(currentDeckId, front, back, tags);
+    closeModal();
+    renderDeckView();
+    showToast('Card added!', 'success');
+}
+
+function showEditCardModal(id) {
+    const card = data.cards.find(c => c.id === id);
+    if (!card) return;
+    showModal(`
+        <h2>Edit Card</h2>
+        <div class="form-group">
+            <label>Front (Question)</label>
+            <textarea id="cardFrontInput" rows="3">${escHtml(card.front)}</textarea>
+        </div>
+        <div class="form-group">
+            <label>Back (Answer)</label>
+            <textarea id="cardBackInput" rows="3">${escHtml(card.back)}</textarea>
+        </div>
+        <div class="form-group">
+            <label>Tags</label>
+            <input type="text" id="cardTagsInput" value="${escAttr(card.tags)}">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="handleUpdateCard('${id}')">Save Changes</button>
+        </div>
+    `);
+}
+
+function handleUpdateCard(id) {
+    const front = document.getElementById('cardFrontInput').value.trim();
+    const back = document.getElementById('cardBackInput').value.trim();
+    const tags = document.getElementById('cardTagsInput').value.trim();
+    if (!front || !back) { showToast('Front and back are required', 'error'); return; }
+    updateCard(id, { front, back, tags });
+    closeModal();
+    renderDeckView();
+    showToast('Card updated!', 'success');
+}
+
+function confirmDeleteCard(id) {
+    const card = data.cards.find(c => c.id === id);
+    showModal(`
+        <h2>Delete Card?</h2>
+        <p style="color:var(--text-muted);margin-bottom:20px;">Delete this card? This cannot be undone.</p>
+        <p style="background:var(--bg-elevated);padding:12px;border-radius:8px;font-size:0.9rem;margin-bottom:20px;">"${escHtml(card.front.slice(0, 80))}"</p>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="handleDeleteCard('${id}')">Delete</button>
+        </div>
+    `);
+}
+
+function handleDeleteCard(id) {
+    deleteCard(id);
+    closeModal();
+    renderDeckView();
+    showToast('Card deleted', 'success');
+}
+
+// ==================== UTILITIES ====================
+
+function escHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function escAttr(str) {
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+}
+
+// ==================== INIT ====================
+
+renderHome();
+</script>
+</body>
+</html>
