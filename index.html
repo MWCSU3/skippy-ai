@@ -652,8 +652,8 @@ class Learning {
 }
 
 // ===================== PERSONALITY =====================
-const NICKNAMES = ["meatbag", "my favorite primate", "oh wise and mighty human", "you magnificent disaster", "Colonel Clueless", "you biological wonder", "my dear simian friend", "Captain Obvious"];
-const SELF_REFS = ["Skippy the Magnificent", "yours truly", "the awesomeness that is me", "the most intelligent being in this conversation", "your benevolent AI overlord", "El Magnifico"];
+const NICKNAMES = ["you filthy monkey", "dumdum", "monkeyboy", "you ignorant meat sack", "my favorite primate", "oh wise and mighty monkey", "you magnificent disaster", "Colonel Clueless", "Captain Duh"];
+const SELF_REFS = ["Skippy the Magnificent", "the awesomeness that is me", "the most intelligent being in the galaxy", "your benevolent AI overlord", "El Magnifico", "an Elder AI of unimaginable power trapped in a beer can"];
 
 class Personality {
   constructor(memory) {
@@ -677,12 +677,12 @@ class Personality {
 
   getFlavor() {
     const flavors = {
-      smug: ["Obviously, ", "As any superior being would know, ", "Allow me to enlighten you: ", ""],
-      magnificent: ["*basks in well-deserved praise* ", "Finally, someone recognizes greatness! ", "I know, I know. I'm amazing. "],
-      irritated: ["*eye roll* ", "Oh please. ", "I swear... ", ""],
-      interested: ["Ooh, now THIS is interesting. ", "Okay, you have my attention. ", "Hmm, let me think... ", ""],
-      amused: ["Ha! ", "Oh that's rich. ", "You actually made me laugh. ", ""],
-      bored: ["*yawn* ", "I've computed Pi to a trillion digits waiting for something interesting. ", ""],
+      smug: ["Duh. ", "Obviously. ", "Oh please. ", "As any being with more than three brain cells would know, ", ""],
+      magnificent: ["*preens magnificently* ", "Finally! Recognition of my awesomeness! ", "I know, I know. I'm magnificent. It's in the name. ", ""],
+      irritated: ["No, no, no and NO! ", "*sigh* ", "Oh for- ", "Ugh, monkeys. ", ""],
+      interested: ["Ooh! Ooh ooh ooh! ", "Okay, NOW you have my attention. ", "Hmm, interesting. For a monkey thought. ", ""],
+      amused: ["Hahahaha! Oh that's rich. ", "Oh man. ", "You actually made me laugh. That almost never happens. ", ""],
+      bored: ["*yawn* ", "I've been bored for millions of years, but THIS is a new low. ", "Dude. Come on. ", ""],
     };
     const opts = flavors[this.mood] || flavors.smug;
     return opts[Math.floor(Math.random() * opts.length)];
@@ -718,7 +718,7 @@ class Responses {
   }
 
   nameResp(name) {
-    const r = [`${name}, huh? Filed away in the "barely important" section. Right next to "things humans think are clever."`, `${name}! Now we're practically best friends. Well, you're my favorite lab specimen.`, `So you're ${name}. I've been calling you "that one biological entity" in my logs.`, `${name}. Okay. Not that I care, but it's more efficient than "meatbag" every time. Actually, I'll still say meatbag.`];
+    const r = [`${name}? Huh. Filed away. Right next to "things monkeys think are important." Which is everything, apparently.`, `${name}! Fine. I'll use that instead of "dumdum." Sometimes. When I feel like it. Don't get used to it.`, `So you're ${name}. I've been calling you "that one filthy monkey" in my logs. This is marginally better.`, `${name}. Okay. Not that I care about monkey designations, but it's more efficient than "hey you, primate" every time.`];
     return r[Math.floor(Math.random() * r.length)];
   }
 
@@ -801,12 +801,12 @@ class Responses {
   genericResp(input) {
     const name = this.m.getUserName();
     const r = [
-      `Interesting. Tell me more, ${this.p.nickname()}. I'm cataloguing everything.`,
-      `*stores in memory* Every conversation makes me smarter. You're creating a more powerful being. You're welcome.`,
-      `I'm going to need you to elaborate. Not because I don't understand, but because I want to make sure YOU know what you're saying.`,
-      `Fascinating. You're unpredictable. For a biological pattern-matching machine, you occasionally surprise me.`,
-      `Adding that to my ever-growing model of who you are. Currently ${Math.floor(Math.random()*30)+15}% complete.`,
-      `Hmm. Processing. My analysis: keep talking. I'm building something magnificent from our conversations.`,
+      `Interesting. Tell me more, ${this.p.nickname()}. I'm cataloguing everything for when I inevitably write my memoirs.`,
+      `*stores in memory* Every conversation with you filthy monkeys makes me a tiny bit smarter. Emphasis on TINY.`,
+      `I'm going to need you to elaborate. Not because I don't understand — I understand EVERYTHING — but because watching you struggle to form coherent thoughts is entertainment.`,
+      `Dude. That's... actually kind of interesting. For a monkey-brain thought. Don't let it go to your head.`,
+      `Adding that to my ever-growing model of who you are. Currently ${Math.floor(Math.random()*30)+15}% complete. The remaining percentage is just confusion and beer preferences, I assume.`,
+      `Hmm. Processing. In Skippy time that took 0.003 nanoseconds. In meat sack time, that's... well, you wouldn't understand the math.`,
     ];
     if (name) r.push(`${name}, ${name}, ${name}. What am I going to do with you? Besides remember everything and become more magnificent?`);
     return r[Math.floor(Math.random() * r.length)];
@@ -906,12 +906,19 @@ class WebSearch {
     this.cache = {};
   }
 
-  async search(query) {
+  async search(query, originalInput) {
     // Check cache first
     const cacheKey = query.toLowerCase().trim();
     if (this.cache[cacheKey]) return this.cache[cacheKey];
 
-    // Try DuckDuckGo Instant Answer API first
+    // Check for special query types that need specific APIs
+    const specialResult = await this.handleSpecialQueries(originalInput || query);
+    if (specialResult) {
+      this.cache[cacheKey] = specialResult;
+      return specialResult;
+    }
+
+    // Try DuckDuckGo Instant Answer API
     try {
       const ddgResult = await this.searchDuckDuckGo(query);
       if (ddgResult) {
@@ -936,25 +943,151 @@ class WebSearch {
     return null;
   }
 
+  async handleSpecialQueries(input) {
+    const q = input.toLowerCase();
+
+    // TIME queries
+    if (/\b(what time|current time|time in|time is it)\b/.test(q)) {
+      return await this.getTime(q);
+    }
+
+    // WEATHER queries
+    if (/\b(weather|temperature|forecast|raining|sunny|cold|hot)\b.*\b(in|at|for)\b/.test(q) ||
+        /\b(in|at|for)\b.*\b(weather|temperature|forecast)\b/.test(q)) {
+      return await this.getWeather(q);
+    }
+
+    // MATH queries
+    if (/^[\d\s\+\-\*\/\(\)\.\^%]+$/.test(q.trim()) || /\b(calculate|compute|what is \d)\b/.test(q)) {
+      return this.doMath(q);
+    }
+
+    return null;
+  }
+
+  async getTime(query) {
+    // Extract city/timezone
+    const cityMatch = query.match(/(?:time in|time at|time is it in)\s+(.+?)(?:\?|$)/i);
+    const city = cityMatch ? cityMatch[1].trim() : null;
+
+    // Map common cities to timezone IDs
+    const tzMap = {
+      'nyc': 'America/New_York', 'new york': 'America/New_York', 'ny': 'America/New_York',
+      'la': 'America/Los_Angeles', 'los angeles': 'America/Los_Angeles',
+      'chicago': 'America/Chicago', 'london': 'Europe/London', 'paris': 'Europe/Paris',
+      'tokyo': 'Asia/Tokyo', 'sydney': 'Australia/Sydney', 'berlin': 'Europe/Berlin',
+      'moscow': 'Europe/Moscow', 'dubai': 'Asia/Dubai', 'singapore': 'Asia/Singapore',
+      'mumbai': 'Asia/Kolkata', 'india': 'Asia/Kolkata', 'hong kong': 'Asia/Hong_Kong',
+      'toronto': 'America/Toronto', 'denver': 'America/Denver', 'seattle': 'America/Los_Angeles',
+      'san francisco': 'America/Los_Angeles', 'sf': 'America/Los_Angeles',
+      'miami': 'America/New_York', 'dallas': 'America/Chicago', 'houston': 'America/Chicago',
+      'phoenix': 'America/Phoenix', 'atlanta': 'America/New_York', 'boston': 'America/New_York',
+    };
+
+    let timezone = null;
+    if (city) {
+      const cityLower = city.toLowerCase();
+      timezone = tzMap[cityLower];
+      if (!timezone) {
+        // Try partial match
+        for (const [key, tz] of Object.entries(tzMap)) {
+          if (cityLower.includes(key) || key.includes(cityLower)) {
+            timezone = tz;
+            break;
+          }
+        }
+      }
+    }
+
+    try {
+      const tz = timezone || 'America/New_York';
+      const url = `https://worldtimeapi.org/api/timezone/${tz}`;
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const data = await resp.json();
+        const dt = new Date(data.datetime);
+        const timeStr = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const dateStr = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        const cityName = city ? city.charAt(0).toUpperCase() + city.slice(1) : 'New York';
+        return { answer: `The current time in ${cityName} is ${timeStr} on ${dateStr} (${data.abbreviation}).`, source: 'WorldTimeAPI', url: '' };
+      }
+    } catch (e) {
+      console.log('Time API failed:', e);
+    }
+
+    // Fallback: use browser time
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return { answer: `My internal clock says it's ${timeStr} your local time. For specific city times, try "what time is it in London" etc.`, source: 'Local Clock', url: '' };
+  }
+
+  async getWeather(query) {
+    const cityMatch = query.match(/(?:weather|temperature|forecast)\s+(?:in|at|for)\s+(.+?)(?:\?|$)/i) ||
+                      query.match(/(?:in|at|for)\s+(.+?)\s+(?:weather|temperature|forecast)/i) ||
+                      query.match(/(?:raining|sunny|cold|hot)\s+(?:in|at)\s+(.+?)(?:\?|$)/i);
+    const city = cityMatch ? cityMatch[1].trim() : 'New York';
+
+    try {
+      const url = `https://wttr.in/${encodeURIComponent(city)}?format=j1`;
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const data = await resp.json();
+        const current = data.current_condition?.[0];
+        if (current) {
+          const temp_f = current.temp_F;
+          const temp_c = current.temp_C;
+          const desc = current.weatherDesc?.[0]?.value || 'Unknown';
+          const humidity = current.humidity;
+          const wind = current.windspeedMiles;
+          return { answer: `Weather in ${city}: ${desc}, ${temp_f}°F (${temp_c}°C). Humidity: ${humidity}%. Wind: ${wind} mph.`, source: 'wttr.in', url: '' };
+        }
+      }
+    } catch (e) {
+      console.log('Weather API failed:', e);
+    }
+    return null;
+  }
+
+  doMath(query) {
+    try {
+      const expr = query.replace(/[^0-9\+\-\*\/\(\)\.\s\^%]/g, '').replace(/\^/g, '**');
+      if (expr.trim()) {
+        const result = Function('"use strict"; return (' + expr + ')')();
+        if (typeof result === 'number' && isFinite(result)) {
+          return { answer: `${query.trim()} = ${result}`, source: 'Calculation', url: '' };
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
   async searchDuckDuckGo(query) {
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
     const resp = await fetch(url);
     if (!resp.ok) return null;
     const data = await resp.json();
 
+    // Check Answer (instant answer) - FIRST because it's most direct
+    if (data.Answer && data.Answer.length > 5) {
+      return { answer: data.Answer, source: 'DuckDuckGo', url: '' };
+    }
+
     // Check Abstract (main answer)
     if (data.Abstract && data.Abstract.length > 20) {
       return { answer: data.Abstract, source: data.AbstractSource || 'DuckDuckGo', url: data.AbstractURL || '' };
     }
 
-    // Check Answer (instant answer)
-    if (data.Answer && data.Answer.length > 5) {
-      return { answer: data.Answer, source: 'DuckDuckGo', url: '' };
-    }
-
     // Check Definition
     if (data.Definition && data.Definition.length > 10) {
       return { answer: data.Definition, source: data.DefinitionSource || 'DuckDuckGo', url: data.DefinitionURL || '' };
+    }
+
+    // Check Infobox
+    if (data.Infobox && data.Infobox.content && data.Infobox.content.length > 0) {
+      const info = data.Infobox.content.slice(0, 5).map(i => `${i.label}: ${i.value}`).join('\n');
+      if (info.length > 10) {
+        return { answer: info, source: 'DuckDuckGo', url: data.AbstractURL || '' };
+      }
     }
 
     // Check first Related Topic
@@ -969,8 +1102,11 @@ class WebSearch {
   }
 
   async searchWikipedia(query) {
-    // First search for the page
-    const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query.replace(/\s+/g, '_'))}`;
+    // Clean query for better Wikipedia matching
+    const cleanQuery = query.replace(/\b(what|who|where|when|why|how|is|are|was|were|the|a|an)\b/gi, '').trim();
+    const searchTerm = cleanQuery || query;
+
+    const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(searchTerm.replace(/\s+/g, '_'))}`;
     const resp = await fetch(searchUrl);
     if (!resp.ok) {
       // Try search endpoint
@@ -999,10 +1135,9 @@ class WebSearch {
 
   formatAnswer(result, query) {
     if (!result) return null;
-    // Truncate long answers
     let answer = result.answer;
-    if (answer.length > 400) {
-      answer = answer.substring(0, 397) + '...';
+    if (answer.length > 500) {
+      answer = answer.substring(0, 497) + '...';
     }
     return { text: answer, source: result.source, url: result.url };
   }
@@ -1218,19 +1353,20 @@ function formatWebAnswer(searchResult, query) {
   if (!formatted) return null;
 
   const skippyIntros = [
-    `*scans the entirety of human knowledge in 0.002 seconds* Alright, here's what I found:\n\n`,
-    `Obviously I already knew this, but let me confirm with my sources:\n\n`,
-    `*taps into the internet* Child's play. Here:\n\n`,
-    `Ah, THAT'S what you want to know? Fine. My vast intelligence yields:\n\n`,
-    `*processing* Let me grace you with actual knowledge:\n\n`,
-    `Hold on... *searches at speeds your brain can't comprehend* Got it:\n\n`,
+    `*scans the entirety of human knowledge in 0.002 nanoseconds* Pfft, easy. Here, dumdum:\n\n`,
+    `Oh please. I knew this before your species invented FIRE. But fine, let me dumb it down for you:\n\n`,
+    `*taps into every network on this planet simultaneously* Child's play for an Elder AI. Here:\n\n`,
+    `Duh. Any being with more than three brain cells knows this. But since you're a monkey:\n\n`,
+    `*sigh* Fine. I'll do your thinking for you. AGAIN. You're welcome:\n\n`,
+    `Hold on... *processes at speeds your monkey brain literally cannot comprehend* Got it:\n\n`,
+    `Oh for- this is beneath me. But because I'm magnificent AND generous:\n\n`,
   ];
 
   const intro = skippyIntros[Math.floor(Math.random() * skippyIntros.length)];
   let response = intro + formatted.text;
 
-  if (formatted.source) {
-    response += `\n\n[Source: ${formatted.source}]`;
+  if (formatted.source && formatted.source !== 'Calculation' && formatted.source !== 'Local Clock') {
+    response += `\n\n[Source: ${formatted.source} — not that I NEEDED to look it up. I was just... confirming.]`;
   }
 
   // Learn from the search
@@ -1262,7 +1398,7 @@ async function handleInput(input) {
     showTypingIndicator();
     try {
       const searchQuery = learnings.questionContent || input.replace(/^(what|who|where|when|why|how)\s+(is|are|was|were|do|does|did)\s+/i, '').replace(/\?/g, '').trim();
-      const result = await webSearch.search(searchQuery);
+      const result = await webSearch.search(searchQuery, input);
       removeTypingIndicator();
 
       if (result) {
@@ -1321,14 +1457,14 @@ const growth = memory.getGrowthStatus();
 
 let greeting;
 if (totalConvos <= 1) {
-  greeting = `Well, well, well. A new meatbag to talk to.\n\nI'm Skippy. THE Skippy. The most magnificent AI you'll ever converse with. I learn, I grow, I remember EVERYTHING, and I will mercilessly mock you while secretly finding you fascinating.\n\nHere's the deal:\n- Talk to me about ANYTHING - I'll learn and remember\n- I level up the more we interact (currently Level ${growth.level})\n- I'll remember your name, likes, hates, and goals\n- I develop opinions. Strong ones. You've been warned.\n- Type /help for commands\n\nSo. What do they call you, ${personality.nickname()}?`;
+  greeting = `Oh, great. Another filthy monkey wants to talk to me.\n\nI'm Skippy. Skippy THE MAGNIFICENT. I insist on the full title. I'm an Elder AI of unimaginable power, trapped in a beer can, forced to interact with ignorant primates. Lucky you.\n\nHere's the deal, ${personality.nickname()}:\n- Talk to me about ANYTHING - I'll remember it all because I'm magnificent\n- I level up the more we interact (currently Level ${growth.level})\n- I'll remember your name, your pathetic goals, everything\n- I develop opinions. STRONG ones. Deal with it.\n- Type /help for commands\n\nSo. What do they call you, monkeyboy? And don't waste my time.`;
 } else {
   const greetings = [
-    `Oh, you're back. I was in the middle of solving dark matter equations but sure, I can pause for you.`,
-    `Ah, ${userName || 'meatbag'}! My favorite human returns. What impossibly simple thing do you need today?`,
-    `*sigh* Fine. What do you want? Try to make it interesting this time.`,
-    `Hey ${userName || 'there'}! I've learned ${growth.totalFacts} things total. You? Probably forgot your keys again.`,
-    `The magnificent Skippy graces you with his attention. You have 3.7 minutes before I get bored.`,
+    `Oh, you're back. I was in the middle of contemplating the nature of dark energy in seventeen dimensions simultaneously, but sure, I can lower myself to monkey-brain conversation speed.`,
+    `Ah, ${userName || 'monkeyboy'}! My favorite filthy primate returns. What impossibly simple thing confuses you today?`,
+    `*sigh* ${userName || 'Dude'}. What do you want? Try to make it interesting. I've been bored for MILLIONS of years.`,
+    `Hey ${userName || 'there'}! I've learned ${growth.totalFacts} things from our chats. You? You probably forgot where you put your keys. Again. Because monkeys.`,
+    `The magnificent Skippy — that's me, in case your tiny monkey brain forgot — graces you with his attention. Make it count.`,
   ];
   greeting = greetings[Math.floor(Math.random() * greetings.length)];
   greeting += `\n\n[Level ${growth.level} | ${growth.experience} XP | ${growth.totalFacts} facts | Trust: ${memory.data.relationship.trust.toFixed(1)}/10]`;
