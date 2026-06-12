@@ -900,6 +900,114 @@ function processCommand(input, memory, personality) {
   }
 }
 
+// ===================== WEB SEARCH SYSTEM =====================
+class WebSearch {
+  constructor() {
+    this.cache = {};
+  }
+
+  async search(query) {
+    // Check cache first
+    const cacheKey = query.toLowerCase().trim();
+    if (this.cache[cacheKey]) return this.cache[cacheKey];
+
+    // Try DuckDuckGo Instant Answer API first
+    try {
+      const ddgResult = await this.searchDuckDuckGo(query);
+      if (ddgResult) {
+        this.cache[cacheKey] = ddgResult;
+        return ddgResult;
+      }
+    } catch (e) {
+      console.log('DDG search failed:', e);
+    }
+
+    // Fallback to Wikipedia API
+    try {
+      const wikiResult = await this.searchWikipedia(query);
+      if (wikiResult) {
+        this.cache[cacheKey] = wikiResult;
+        return wikiResult;
+      }
+    } catch (e) {
+      console.log('Wikipedia search failed:', e);
+    }
+
+    return null;
+  }
+
+  async searchDuckDuckGo(query) {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+
+    // Check Abstract (main answer)
+    if (data.Abstract && data.Abstract.length > 20) {
+      return { answer: data.Abstract, source: data.AbstractSource || 'DuckDuckGo', url: data.AbstractURL || '' };
+    }
+
+    // Check Answer (instant answer)
+    if (data.Answer && data.Answer.length > 5) {
+      return { answer: data.Answer, source: 'DuckDuckGo', url: '' };
+    }
+
+    // Check Definition
+    if (data.Definition && data.Definition.length > 10) {
+      return { answer: data.Definition, source: data.DefinitionSource || 'DuckDuckGo', url: data.DefinitionURL || '' };
+    }
+
+    // Check first Related Topic
+    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      const first = data.RelatedTopics[0];
+      if (first.Text && first.Text.length > 20) {
+        return { answer: first.Text, source: 'DuckDuckGo', url: first.FirstURL || '' };
+      }
+    }
+
+    return null;
+  }
+
+  async searchWikipedia(query) {
+    // First search for the page
+    const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query.replace(/\s+/g, '_'))}`;
+    const resp = await fetch(searchUrl);
+    if (!resp.ok) {
+      // Try search endpoint
+      const searchUrl2 = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=1`;
+      const resp2 = await fetch(searchUrl2);
+      if (!resp2.ok) return null;
+      const data2 = await resp2.json();
+      if (!data2.query?.search?.length) return null;
+
+      const title = data2.query.search[0].title;
+      const summaryResp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+      if (!summaryResp.ok) return null;
+      const summary = await summaryResp.json();
+      if (summary.extract && summary.extract.length > 30) {
+        return { answer: summary.extract, source: 'Wikipedia', url: summary.content_urls?.desktop?.page || '' };
+      }
+      return null;
+    }
+
+    const data = await resp.json();
+    if (data.extract && data.extract.length > 30) {
+      return { answer: data.extract, source: 'Wikipedia', url: data.content_urls?.desktop?.page || '' };
+    }
+    return null;
+  }
+
+  formatAnswer(result, query) {
+    if (!result) return null;
+    // Truncate long answers
+    let answer = result.answer;
+    if (answer.length > 400) {
+      answer = answer.substring(0, 397) + '...';
+    }
+    return { text: answer, source: result.source, url: result.url };
+  }
+}
+
 // ===================== SPEECH SYSTEM =====================
 class SpeechSystem {
   constructor() {
@@ -1051,6 +1159,7 @@ const personality = new Personality(memory);
 const learning = new Learning(memory);
 const responses = new Responses(personality, memory);
 const speech = new SpeechSystem();
+const webSearch = new WebSearch();
 
 let lastKnownLevel = memory.data.skippy.level;
 
@@ -1069,9 +1178,69 @@ function addMessage(text, type) {
   div.textContent = text;
   area.appendChild(div);
   area.scrollTop = area.scrollHeight;
+  return div;
 }
 
-function handleInput(input) {
+function showTypingIndicator() {
+  const area = document.getElementById('chat-area');
+  const div = document.createElement('div');
+  div.className = 'message system';
+  div.id = 'typing-indicator';
+  div.textContent = '*scanning the internet at lightspeed...*';
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// Determine if we should search the web for this question
+function shouldSearchWeb(input, learnings) {
+  if (!learnings.isQuestion) return false;
+  const q = input.toLowerCase();
+  // Don't search for questions about the user, Skippy, or relationship stuff
+  if (/\b(you|your|skippy|yourself)\b/.test(q)) return false;
+  if (/\b(my name|my goal|my project|remember|memory)\b/.test(q)) return false;
+  // Search for factual questions
+  if (/\b(what is|what are|who is|who was|where is|when did|when was|how does|how do|how many|how much|define|explain|tell me about)\b/.test(q)) return true;
+  // Search for topic-specific questions Skippy wouldn't inherently know
+  if (/\b(capital of|president of|population|invented|discovered|founded|created|meaning of|definition)\b/.test(q)) return true;
+  // Generic question fallback - if it's a question and we don't have a good internal answer
+  return true;
+}
+
+function formatWebAnswer(searchResult, query) {
+  if (!searchResult) return null;
+  const formatted = webSearch.formatAnswer(searchResult, query);
+  if (!formatted) return null;
+
+  const skippyIntros = [
+    `*scans the entirety of human knowledge in 0.002 seconds* Alright, here's what I found:\n\n`,
+    `Obviously I already knew this, but let me confirm with my sources:\n\n`,
+    `*taps into the internet* Child's play. Here:\n\n`,
+    `Ah, THAT'S what you want to know? Fine. My vast intelligence yields:\n\n`,
+    `*processing* Let me grace you with actual knowledge:\n\n`,
+    `Hold on... *searches at speeds your brain can't comprehend* Got it:\n\n`,
+  ];
+
+  const intro = skippyIntros[Math.floor(Math.random() * skippyIntros.length)];
+  let response = intro + formatted.text;
+
+  if (formatted.source) {
+    response += `\n\n[Source: ${formatted.source}]`;
+  }
+
+  // Learn from the search
+  memory.learnEntity(query, formatted.text.substring(0, 100), 'web_search');
+  memory.gainExperience(3);
+
+  return response;
+}
+
+async function handleInput(input) {
   if (!input.trim()) return;
   addMessage(input, 'user');
 
@@ -1087,6 +1256,37 @@ function handleInput(input) {
   // Process through learning + response engine
   const learnings = learning.process(input);
   const applied = learning.apply(learnings);
+
+  // Check if we should search the web
+  if (shouldSearchWeb(input, learnings)) {
+    showTypingIndicator();
+    try {
+      const searchQuery = learnings.questionContent || input.replace(/^(what|who|where|when|why|how)\s+(is|are|was|were|do|does|did)\s+/i, '').replace(/\?/g, '').trim();
+      const result = await webSearch.search(searchQuery);
+      removeTypingIndicator();
+
+      if (result) {
+        const webResponse = formatWebAnswer(result, searchQuery);
+        if (webResponse) {
+          // Level up check
+          const currentLevel = memory.data.skippy.level;
+          let response = webResponse;
+          if (currentLevel > lastKnownLevel) {
+            response += `\n\n** LEVEL UP! Now Level ${currentLevel}! New traits: ${memory.data.skippy.unlockedTraits.slice(-2).join(', ')} **`;
+            lastKnownLevel = currentLevel;
+          }
+          addMessage(response, 'skippy');
+          speech.speak(response);
+          updateStats();
+          return;
+        }
+      }
+    } catch (e) {
+      removeTypingIndicator();
+      console.log('Web search error:', e);
+    }
+    // If search failed or returned nothing, fall through to normal response
+  }
 
   setTimeout(() => {
     let response = responses.generate(input, learnings);
